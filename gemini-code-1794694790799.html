@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#F2F2F7">
+  <title>SG科目A 実践トレーナー</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ios: {
+              bg: '#F2F2F7',
+              card: '#FFFFFF',
+              blue: '#007AFF',
+              green: '#34C759',
+              red: '#FF3B30',
+              orange: '#FF9500',
+              gray: '#8E8E93',
+              border: '#E5E5EA'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Apple HIG & スマホ最適化設定 */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+      box-sizing: border-box;
+    }
+    input, textarea {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    html, body {
+      touch-action: manipulation;
+      background-color: #F2F2F7;
+      color: #1C1C1E;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      overscroll-behavior-y: none;
+    }
+    /* Safe Area 対応 */
+    .safe-top {
+      padding-top: max(env(safe-area-inset-top), 12px);
+    }
+    .safe-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
+    }
+    /* タップ領域最低44px保証 */
+    .tap-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* スクロールバー非表示 */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- 上部ヘッダー -->
+  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-ios-border safe-top px-4 pb-3">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-ios-blue flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+        <h1 class="text-lg font-bold tracking-tight">SG科目A 実践 100</h1>
+      </div>
+      <!-- CBTタイマー表示（演習中のみ表示） -->
+      <div id="cbt-header-info" class="hidden flex items-center space-x-3">
+        <div class="flex items-center space-x-1 bg-gray-100 px-2.5 py-1 rounded-full text-xs font-semibold text-gray-700">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-ios-blue"></i>
+          <span id="timer-display">00:00</span>
+        </div>
+        <button onclick="openQuestionPalette()" class="tap-target px-3 py-1 bg-ios-blue/10 text-ios-blue rounded-full text-xs font-bold flex items-center space-x-1 active:scale-95 transition">
+          <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+          <span>一覧</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ領域 -->
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-4 pb-28 overflow-x-hidden">
+
+    <!-- 1. ダッシュボード（ホーム画面） -->
+    <section id="view-home" class="space-y-4">
+      <!-- 合格ライン指標カード -->
+      <div class="bg-ios-card rounded-2xl p-4 shadow-sm border border-ios-border/60">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-bold text-ios-gray uppercase tracking-wider">合格基準達成度（目標 60%）</span>
+          <span id="stat-badge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">未計測</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-ios-bg rounded-xl p-3">
+            <div class="text-xs text-ios-gray mb-1">総演習数</div>
+            <div id="stat-total-answered" class="text-xl font-extrabold text-gray-900">0<span class="text-xs font-normal ml-0.5">回</span></div>
+          </div>
+          <div class="bg-ios-bg rounded-xl p-3">
+            <div class="text-xs text-ios-gray mb-1">正答率</div>
+            <div id="stat-accuracy" class="text-xl font-extrabold text-ios-blue">0<span class="text-xs font-normal ml-0.5">%</span></div>
+          </div>
+          <div class="bg-ios-bg rounded-xl p-3">
+            <div class="text-xs text-ios-gray mb-1">要復習</div>
+            <div id="stat-weak-count" class="text-xl font-extrabold text-ios-orange">0<span class="text-xs font-normal ml-0.5">問</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- モード選択（テスト開始導線） -->
+      <div class="space-y-2.5">
+        <h2 class="text-xs font-bold text-ios-gray px-1">演習スタート（科目A・四肢択一 / 全100問収録）</h2>
+        
+        <button onclick="startQuiz('cbt')" class="w-full bg-ios-blue text-white rounded-2xl p-4 shadow-sm flex items-center justify-between active:scale-[0.99] transition tap-target">
+          <div class="flex items-center space-x-3.5 text-left">
+            <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
+              <i data-lucide="monitor-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="font-bold text-base">本番CBT模試モード（48問抽選）</div>
+              <div class="text-xs text-white/80">本番と同じ48問・見直しフラグ・一覧パレット採点</div>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="w-5 h-5 text-white/80"></i>
+        </button>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="startQuiz('instant')" class="bg-ios-card rounded-2xl p-3.5 shadow-sm border border-ios-border/60 flex items-center space-x-3 text-left active:scale-[0.98] transition tap-target">
+            <div class="w-10 h-10 rounded-xl bg-ios-green/10 text-ios-green flex items-center justify-center shrink-0">
+              <i data-lucide="zap" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="font-bold text-sm">全100問一問一答</div>
+              <div class="text-[11px] text-ios-gray">即時採点・網羅解説</div>
+            </div>
+          </button>
+
+          <button onclick="startQuiz('weak')" class="bg-ios-card rounded-2xl p-3.5 shadow-sm border border-ios-border/60 flex items-center space-x-3 text-left active:scale-[0.98] transition tap-target">
+            <div class="w-10 h-10 rounded-xl bg-ios-orange/10 text-ios-orange flex items-center justify-center shrink-0">
+              <i data-lucide="flame" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="font-bold text-sm">弱点・見直し</div>
+              <div class="text-[11px] text-ios-gray">誤答・フラグ特訓</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- シラバス分野別フィルタ＆進捗グラフ -->
+      <div class="bg-ios-card rounded-2xl p-4 shadow-sm border border-ios-border/60 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold text-ios-gray">シラバス分野別 演習・分析（各20問）</h2>
+          <span class="text-[11px] text-ios-gray">タップで分野別スタート</span>
+        </div>
+        <div id="category-buttons" class="grid grid-cols-1 gap-2"></div>
+        <div class="pt-2">
+          <canvas id="radarChart" height="220"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 演習・CBT画面 -->
+    <section id="view-quiz" class="hidden space-y-4">
+      <!-- 進捗＆ツールバー -->
+      <div class="bg-ios-card rounded-2xl p-3.5 shadow-sm border border-ios-border/60 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span id="quiz-q-num" class="text-sm font-extrabold bg-ios-blue text-white px-2.5 py-1 rounded-lg">問 1 / 100</span>
+          <span id="quiz-category-badge" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 truncate max-w-[150px]">セキュリティ全般</span>
+        </div>
+        <button id="btn-flag" onclick="toggleCurrentFlag()" class="tap-target px-3 py-1.5 rounded-xl border border-ios-border text-xs font-bold flex items-center space-x-1.5 transition">
+          <i data-lucide="flag" class="w-4 h-4"></i>
+          <span>後で見直す</span>
+        </button>
+      </div>
+
+      <!-- 問題文カード -->
+      <div class="bg-ios-card rounded-2xl p-5 shadow-sm border border-ios-border/60 space-y-4">
+        <p id="quiz-question-text" class="text-base font-medium leading-relaxed text-gray-900 select-text"></p>
+
+        <!-- 四肢択一（ア・イ・ウ・エ） -->
+        <div id="quiz-options" class="space-y-2.5 pt-2"></div>
+      </div>
+
+      <!-- 一問一答モード用：即時解説エリア -->
+      <div id="instant-explanation" class="hidden bg-ios-card rounded-2xl p-5 shadow-sm border border-ios-border/60 space-y-3">
+        <div id="instant-result-banner" class="flex items-center space-x-2 font-bold text-base"></div>
+        <div class="text-sm text-gray-700 leading-relaxed bg-ios-bg p-3.5 rounded-xl" id="instant-exp-text"></div>
+      </div>
+
+      <!-- ナビゲーションボタン（前へ・次へ・採点） -->
+      <div class="flex items-center justify-between gap-3 pt-1">
+        <button id="btn-prev" onclick="navigateQuestion(-1)" class="tap-target flex-1 bg-white border border-ios-border text-gray-700 font-bold rounded-xl py-3 px-4 flex items-center justify-center space-x-1 active:scale-95 transition">
+          <i data-lucide="chevron-left" class="w-5 h-5"></i>
+          <span>前の問題</span>
+        </button>
+        <button id="btn-next" onclick="navigateQuestion(1)" class="tap-target flex-1 bg-ios-blue text-white font-bold rounded-xl py-3 px-4 flex items-center justify-center space-x-1 active:scale-95 transition">
+          <span>次の問題</span>
+          <i data-lucide="chevron-right" class="w-5 h-5"></i>
+        </button>
+        <button id="btn-finish" onclick="finishQuiz()" class="hidden tap-target flex-1 bg-ios-green text-white font-bold rounded-xl py-3 px-4 flex items-center justify-center space-x-1 active:scale-95 transition">
+          <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          <span>試験終了・採点</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. 試験結果・振り返り画面 -->
+    <section id="view-result" class="hidden space-y-4">
+      <div class="bg-ios-card rounded-2xl p-6 shadow-sm border border-ios-border/60 text-center space-y-3">
+        <div id="result-pass-badge" class="inline-block px-4 py-1 rounded-full text-sm font-extrabold"></div>
+        <div class="text-4xl font-black text-gray-900" id="result-score-text">0 / 0 (0%)</div>
+        <p class="text-xs text-ios-gray">合格基準: 正答率 60%以上（基準点 600/1000点相当）</p>
+        <div class="pt-2 flex gap-2 justify-center">
+          <button onclick="switchTab('home')" class="tap-target px-5 py-2.5 bg-gray-100 text-gray-800 rounded-xl text-sm font-bold active:scale-95 transition">ホームへ戻る</button>
+          <button onclick="startQuiz('weak')" class="tap-target px-5 py-2.5 bg-ios-blue text-white rounded-xl text-sm font-bold active:scale-95 transition">間違えた問題を復習</button>
+        </div>
+      </div>
+
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-bold text-ios-gray px-1">解答一覧と解説</h3>
+        <div id="result-review-list" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- 4. 問題バンク管理（CRUD）画面 -->
+    <section id="view-manage" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-gray-900">問題バンク管理（全100問＋追加分）</h2>
+          <p class="text-xs text-ios-gray">オリジナル問題の追加・編集・削除・履歴初期化</p>
+        </div>
+        <div class="flex space-x-2">
+          <button onclick="openQuestionModal()" class="tap-target px-3.5 py-2 bg-ios-blue text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm active:scale-95 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>問題追加</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- フィルタ＆検索 -->
+      <div class="flex gap-2">
+        <select id="manage-filter-cat" onchange="renderManageList()" class="tap-target bg-white border border-ios-border rounded-xl px-3 text-xs font-semibold text-gray-700 flex-1">
+          <option value="ALL">すべての分野（100問〜）</option>
+          <option value="セキュリティ全般">① セキュリティ全般（20問）</option>
+          <option value="セキュリティ管理">② セキュリティ管理（20問）</option>
+          <option value="セキュリティ対策">③ セキュリティ対策（20問）</option>
+          <option value="法規・ガイドライン">④ 法規・ガイドライン（20問）</option>
+          <option value="関連分野(IT・経営)">⑤ 関連分野(IT・経営)（20問）</option>
+        </select>
+        <button onclick="resetStudyHistory()" class="tap-target px-3 py-2 bg-white border border-ios-border text-ios-red rounded-xl text-xs font-bold flex items-center space-x-1 active:scale-95 transition">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span>履歴リセット</span>
+        </button>
+      </div>
+
+      <!-- 問題リスト -->
+      <div id="manage-question-list" class="space-y-2.5"></div>
+    </section>
+
+  </main>
+
+  <!-- モーダル1: CBT問題一覧パレット（外側タップで閉じる） -->
+  <div id="modal-palette" onclick="handleBackdropClick(event, 'modal-palette')" class="fixed inset-0 z-50 hidden bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[80vh] flex flex-col shadow-xl">
+      <div class="flex items-center justify-between border-b border-ios-border pb-3">
+        <div class="font-bold text-base flex items-center space-x-2">
+          <i data-lucide="grid" class="w-5 h-5 text-ios-blue"></i>
+          <span>CBT 解答状況パレット</span>
+        </div>
+        <button onclick="closeModal('modal-palette')" class="tap-target p-2 text-ios-gray hover:text-gray-900">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="flex items-center justify-around text-xs text-ios-gray py-1">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-ios-blue inline-block"></span>解答済</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-200 inline-block"></span>未解答</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full border-2 border-ios-orange inline-block"></span>見直しフラグ</span>
+      </div>
+      <div id="palette-grid" class="grid grid-cols-5 gap-2.5 overflow-y-auto py-2 pr-1"></div>
+      <div class="pt-2 border-t border-ios-border flex gap-2">
+        <button onclick="closeModal('modal-palette')" class="tap-target flex-1 py-2.5 bg-gray-100 rounded-xl font-bold text-sm text-gray-700">閉じる</button>
+        <button onclick="closeModal('modal-palette'); finishQuiz();" class="tap-target flex-1 py-2.5 bg-ios-green text-white rounded-xl font-bold text-sm">採点して終了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- モーダル2: 問題追加・編集（CRUD）モーダル（外側タップで閉じる） -->
+  <div id="modal-crud" onclick="handleBackdropClick(event, 'modal-crud')" class="fixed inset-0 z-50 hidden bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
+      <div class="flex items-center justify-between border-b border-ios-border pb-3">
+        <h3 id="crud-modal-title" class="font-bold text-base">新規問題の追加</h3>
+        <button onclick="closeModal('modal-crud')" class="tap-target p-2 text-ios-gray hover:text-gray-900">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="crud-form" onsubmit="event.preventDefault();" class="space-y-3 text-sm">
+        <input type="hidden" id="crud-id">
+        <div>
+          <label class="block text-xs font-bold text-ios-gray mb-1">シラバス分野</label>
+          <select id="crud-category" class="w-full tap-target bg-ios-bg border border-ios-border rounded-xl px-3 py-2 font-medium">
+            <option value="セキュリティ全般">① セキュリティ全般</option>
+            <option value="セキュリティ管理">② セキュリティ管理</option>
+            <option value="セキュリティ対策">③ セキュリティ対策</option>
+            <option value="法規・ガイドライン">④ 法規・ガイドライン</option>
+            <option value="関連分野(IT・経営)">⑤ 関連分野(IT・経営)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-ios-gray mb-1">問題文</label>
+          <textarea id="crud-question" rows="3" placeholder="問題文を入力してください" class="w-full bg-ios-bg border border-ios-border rounded-xl p-3 focus:outline-none focus:border-ios-blue"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <label class="block text-xs font-bold text-ios-gray">選択肢（ア〜エ）と正解の選択</label>
+          <div class="flex items-center gap-2">
+            <input type="radio" name="crud-correct" value="0" checked class="w-5 h-5 accent-ios-blue">
+            <input type="text" id="crud-opt-0" placeholder="アの選択肢" class="flex-1 tap-target bg-ios-bg border border-ios-border rounded-xl px-3">
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="radio" name="crud-correct" value="1" class="w-5 h-5 accent-ios-blue">
+            <input type="text" id="crud-opt-1" placeholder="イの選択肢" class="flex-1 tap-target bg-ios-bg border border-ios-border rounded-xl px-3">
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="radio" name="crud-correct" value="2" class="w-5 h-5 accent-ios-blue">
+            <input type="text" id="crud-opt-2" placeholder="ウの選択肢" class="flex-1 tap-target bg-ios-bg border border-ios-border rounded-xl px-3">
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="radio" name="crud-correct" value="3" class="w-5 h-5 accent-ios-blue">
+            <input type="text" id="crud-opt-3" placeholder="エの選択肢" class="flex-1 tap-target bg-ios-bg border border-ios-border rounded-xl px-3">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-ios-gray mb-1">解説（Shift + Enterで保存可能）</label>
+          <textarea id="crud-explanation" rows="3" placeholder="正解の理由やシラバス上の重要ポイントを記入" class="w-full bg-ios-bg border border-ios-border rounded-xl p-3 focus:outline-none focus:border-ios-blue"></textarea>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="closeModal('modal-crud')" class="tap-target flex-1 py-2.5 bg-gray-100 rounded-xl font-bold text-gray-700">キャンセル</button>
+          <button type="button" onclick="saveQuestionFromModal()" class="tap-target flex-1 py-2.5 bg-ios-blue text-white rounded-xl font-bold">保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 下部タブバー（Apple HIG準拠） -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/90 backdrop-blur-md border-t border-ios-border safe-bottom">
+    <div class="max-w-2xl mx-auto flex justify-around items-center px-2 pt-1.5">
+      <button onclick="switchTab('home')" id="tab-home" class="tap-target flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
+        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-0.5">ホーム</span>
+      </button>
+      <button onclick="startQuiz('cbt')" id="tab-quiz" class="tap-target flex-1 flex flex-col items-center justify-center py-1 text-ios-gray">
+        <i data-lucide="file-check-2" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-0.5">CBT演習</span>
+      </button>
+      <button onclick="switchTab('manage')" id="tab-manage" class="tap-target flex-1 flex flex-col items-center justify-center py-1 text-ios-gray">
+        <i data-lucide="database" class="w-5 h-5"></i>
+        <span class="text-[10px] font-bold mt-0.5">問題管理</span>
+      </button>
+      <div class="px-2 text-[9px] text-gray-300 self-end pb-1 select-none">v1.1.0</div>
+    </div>
+  </nav>
+
+  <script>
+    /**************************************************************
+     * 1. PWA マニフェスト動的注入 (Single File PWA対応)
+     **************************************************************/
+    (function setupPWA() {
+      const manifest = {
+        name: "SG科目A 実践トレーナー",
+        short_name: "SG科目A",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#F2F2F7",
+        theme_color: "#007AFF",
+        icons: [{
+          src: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23007AFF'/><path d='M50 20 L80 32 V52 C80 72 50 85 50 85 C50 85 20 72 20 52 V32 Z' fill='white'/></svg>",
+          sizes: "192x192",
+          type: "image/svg+xml"
+        }]
+      };
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+      document.head.appendChild(link);
+    })();
+
+    /**************************************************************
+     * 2. シラバス完全網羅 100問プリセットデータ（5分野×各20問）
+     **************************************************************/
+    const RAW_SEED_QUESTIONS = [
+      // ==================== ① セキュリティ全般 (sg-001 〜 sg-020) ====================
+      ["sg-001", "セキュリティ全般", "情報セキュリティの3要素（CIA）に追加される4つの特性のうち、「主張どおりの主体または資源であることを確実にする特性」はどれか。", ["真正性（Authenticity）", "完全性（Integrity）", "責任追跡性（Accountability）", "否認防止（Non-repudiation）"], 0, "真正性は、利用者やシステム等の主体が主張どおりの本物であることを確実にする特性です。完全性は改ざんがないこと、責任追跡性は動作主体の追跡、否認防止は事後の否定を防ぐ特性です。"],
+      ["sg-002", "セキュリティ全般", "Webアプリケーションの脆弱性を悪用した攻撃のうち、攻撃者が用意した罠サイトを閲覧した利用者のブラウザを介して、利用者がログイン中の別のWebサイトに対して意図しないリクエストを送信させる攻撃はどれか。", ["SQLインジェクション", "クロスサイトリクエストフォージェリ（CSRF）", "ディレクトリトラバーサル", "OSコマンドインジェクション"], 1, "CSRFはログイン状態のセッションCookieが自動送信される仕組みを悪用し、利用者が意図しない決済や設定変更などのリクエストを送信させる攻撃です。トークン検証や再認証が有効な対策です。"],
+      ["sg-003", "セキュリティ全般", "ソフトウェアの脆弱性が発見されてから、開発元から修正パッチが提供・適用されるまでの間にその脆弱性を悪用して行われる攻撃を何というか。", ["ブルートフォース攻撃", "パスワードリスト攻撃", "ゼロデイ攻撃", "カミンスキー攻撃"], 2, "修正パッチが公開される日（Day One）より前（Day Zero）に行われるためゼロデイ攻撃と呼ばれます。シグネチャ型対策では防ぎにくいため、EDRやWAFによる仮想パッチが有効です。"],
+      ["sg-004", "セキュリティ全般", "情報セキュリティの3要素における「完全性（Integrity）」が損なわれた事例として、最も適切なものはどれか。", ["WebサーバがDDoS攻撃を受けてアクセス不能になった", "顧客データベースの個人情報が外部に流出した", "Webサイトのトップページが攻撃者によって書き換えられた", "社内ネットワークの通信内容が盗聴された"], 2, "完全性とは情報が正確であり、不正に改ざん・消去されていない特性です。Webページの書き換え（改ざん）は完全性の侵害にあたります。アクセス不能は可用性、流出や盗聴は機密性の侵害です。"],
+      ["sg-005", "セキュリティ全般", "情報セキュリティにおける「否認防止（Non-repudiation）」を実現するための技術として、最も適切なものはどれか。", ["共通鍵暗号による通信の暗号化", "ディジタル署名とタイムスタンプの付与", "ファイアウォールによるパケットフィルタリング", "UPS（無停電電源装置）の導入"], 1, "ディジタル署名によって「誰が作成したか（本人性）」と「改ざんされていないこと」を証明し、タイムスタンプで「いつ存在したか」を証明することで、送信者による事後の否認を防止します。"],
+      ["sg-006", "セキュリティ全般", "複数のサイトで同じIDとパスワードを使い回している利用者を狙い、他サービスから流出したID・パスワードのリストを用いて別サイトへの不正ログインを試みる攻撃はどれか。", ["辞書攻撃", "パスワードリスト攻撃", "レインボーテーブル攻撃", "リバースブルートフォース攻撃"], 1, "パスワードリスト攻撃（クレデンシャルスタッフィング）は、流出済みの正規ID/PWリストを使って他サイトへログインを試みる手法です。サイト自体の脆弱性ではなく利用者の使い回しが原因となります。"],
+      ["sg-007", "セキュリティ全般", "試行回数制限によるアカウントロックを回避するため、よく使われるパスワード（例: Password123）を1つ固定し、多数の利用者IDに対して順番にログインを試みる攻撃はどれか。", ["リバースブルートフォース攻撃（パスワードスプレー攻撃）", "ブルートフォース攻撃", "サイドチャネル攻撃", "中間者攻撃（MITM）"], 0, "1つのIDに多数のパスワードを試すとアカウントロックされるため、逆に「1つのパスワード」を「多数のID」に対して試す手法をリバースブルートフォース攻撃（パスワードスプレー攻撃）と呼びます。"],
+      ["sg-008", "セキュリティ全般", "Webサイトの入力フォームに悪意のあるスクリプトを含んだリンクを踏ませ、利用者のブラウザ上でそのスクリプトを実行させることでCookie情報などを盗み出す攻撃はどれか。", ["SQLインジェクション", "クロスサイトスクリプティング（XSS）", "DNSキャッシュポイズニング", "クリックジャッキング"], 1, "XSS（クロスサイトスクリプティング）は、脆弱なWebアプリを介して被害者のブラウザ上で悪意あるJavaScript等を実行させる攻撃です。HTMLエスケープ処理（サニタイジング）が基本対策です。"],
+      ["sg-009", "セキュリティ全般", "データベースと連携するWebアプリケーションにおいて、入力値に不正な文字列を紛れ込ませることで、開発者が意図しないデータベース操作命令を組み立てて実行させる攻撃はどれか。", ["SQLインジェクション", "バッファオーバーフロー", "ディレクトリトラバーサル", "セッションハイジャック"], 0, "SQLインジェクションは、SQL文の組み立て不備を突いて不正にDBの閲覧・改ざんを行う攻撃です。根本的対策はプレースホルダ（プリペアドステートメント）の実装です。"],
+      ["sg-010", "セキュリティ全般", "ファイル名をパラメータとして受け取るWebアプリにおいて、「../../etc/passwd」のように相対パスを指定することで、本来公開されていないサーバ内の任意のファイルを閲覧する攻撃はどれか。", ["OSコマンドインジェクション", "ディレクトリトラバーサル", "クロスサイトスクリプティング", "HTTPヘッダインジェクション"], 1, "ディレクトリトラバーサル（パストラバーサル）は、親ディレクトリを表す「../」などを入力し、公開ディレクトリ外のファイルに不正アクセスする攻撃です。"],
+      ["sg-011", "セキュリティ全般", "透明化した別サイトのボタンを罠サイトのボタンの上に重ねて配置し、利用者に気づかせないまま意図しないクリック操作（SNSの「いいね」や決済承認など）を行わせる攻撃はどれか。", ["クリックジャッキング", "フィッシング", "ファーミング", "ドライブバイダウンロード"], 0, "クリックジャッキングは、iframe等で対象ページを透明化して重ね、視覚的に騙してクリックさせる手法です。HTTPレスポンスヘッダの「X-Frame-Options」やCSPの設定で対策します。"],
+      ["sg-012", "セキュリティ全般", "特定の企業や組織の従業員が日常的にアクセスする業界団体のWebサイトなどをあらかじめ改ざんしてマルウェアを仕込み、標的がアクセスして感染するのを待ち伏せする攻撃手法はどれか。", ["水飲み場型攻撃（ウォーター링ホール攻撃）", "スピアフィッシング攻撃", "ビジネスメール詐欺（BEC）", "スミッシング"], 0, "肉食動物が獲物の集まる水飲み場で待ち伏せする様子になぞらえ、標的組織がよく利用するWebサイトを改ざんして感染を狙う手法を「水飲み場型攻撃」と呼びます。"],
+      ["sg-013", "セキュリティ全般", "取引先や自社の経営幹部になりすました巧妙な偽メールを送り、正規の業務取引を装って攻撃者が指定する銀行口座へ金銭を振り込ませる詐欺手法はどれか。", ["ビジネスメール詐欺（BEC）", "ランサムウェア攻撃", "クリプトジャッキング", "スケアウェア"], 0, "BEC（Business Email Compromise）は、マルウェアを使わずとも、取引先の請求書口座変更や社長からの緊急送金指示を装って巨額の資金を騙し取る手口です。電話等での別経路確認が有効です。"],
+      ["sg-014", "セキュリティ全般", "オープンリゾルバや権威DNSサーバを踏み台にし、送信元IPアドレスを攻撃対象のIPアドレスに偽装して大量の問合せを行い、増幅された巨大な応答パケットを標的に送りつける攻撃はどれか。", ["DNSリフレクション攻撃（DNSアンプ攻撃）", "DNSキャッシュポイズニング", "SYNフラッド攻撃", "スローロリス攻撃"], 0, "小さな要求に対して大きな応答が返るDNSの特性と、オープンリゾルバ（外部からの再帰問合せを許可する不適切な設定）を悪用した増幅型DDoS攻撃です。"],
+      ["sg-015", "セキュリティ全般", "ハードディスクなどに実行ファイルとして痕跡を残さず、メモリ（RAM）上だけで展開されたり、OS標準の管理ツール（PowerShellやWMIなど）を悪用して活動するマルウェアを何と呼ぶか。", ["ファイルレスマルウェア", "ポリモーフィック型ウイルス", "ルートキット", "ロジックボム"], 0, "ファイルレスマルウェア（環境寄生型攻撃：Living off the Land）はディスク上に不正ファイルを作成しないため、従来のファイルスキャン型ウイルス対策ソフトでは検知が困難です。EDRによる挙動監視が有効です。"],
+      ["sg-016", "セキュリティ全般", "攻撃者のC&C（Command and Control）サーバからインターネット経由で遠隔操作され、一斉にDDoS攻撃やスパムメール送信などを行う多数の感染コンピュータ群を何と呼ぶか。", ["ボットネット", "ハニーポット", "サンドボックス", "プロキシクラスタ"], 0, "マルウェア（ボット）に感染し、C&Cサーバからの指令で動くコンピュータ群をボットネット（ゾンビPC群）と呼びます。"],
+      ["sg-017", "セキュリティ全般", "暗号アルゴリズムの数学的な解読ではなく、暗号処理を行うICカードやデバイスの「消費電力の変化」「処理時間」「電磁波」などを物理的に計測して秘密鍵を推定する攻撃はどれか。", ["サイドチャネル攻撃", "誕生日攻撃", "レインボーテーブル攻撃", "中間者攻撃"], 0, "サイドチャネル攻撃は、デバイスの物理的な副次情報（電力消費量や処理時間など）を観測して秘密情報を割り出す攻撃です。"],
+      ["sg-018", "セキュリティ全般", "ターゲット企業の強固なセキュリティを直接狙うのではなく、比較的セキュリティ対策が手薄な取引先、委託先、関連会社や利用ソフトウェアの更新配布基盤を踏み台にして侵入する攻撃はどれか。", ["サプライチェーン攻撃", "ブルートフォース攻撃", "ソーシャルエンジニアリング", "ショルダーハッキング"], 0, "サプライチェーン攻撃は、取引先・委託先やソフトウェア開発元などの供給網（サプライチェーン）の弱点を突いて本丸の組織へ侵入する手法です。"],
+      ["sg-019", "セキュリティ全般", "人間の心理的な隙や行動のミスにつけ込んで、パスワードなどの機密情報を聞き出したり盗み見たりする手法の総称はどれか。", ["ソーシャルエンジニアリング", "リバースエンジニアリング", "ファジング", "ペネトレーションテスト"], 0, "電話でのなりすまし、ゴミ箱漁り（トラッシング）、肩越しに画面を覗き見る（ショルダーハッキング）など、IT技術ではなく人間の心理や行動の隙を突く手法をソーシャルエンジニアリングと呼びます。"],
+      ["sg-020", "セキュリティ全般", "スマートフォン利用者に対して、宅配業者や金融機関を装ったSMS（ショートメッセージサービス）で偽サイトのURLを送りつけ、IDやパスワードを入力させるフィッシング手法を特に何と呼ぶか。", ["スミッシング（Smishing）", "ビッシング（Vishing）", "スピアフィッシング", "ファーミング"], 0, "SMSを使ったフィッシングは「スミッシング（SMS＋Phishing）」、音声通話（Voice）を使ったフィッシングは「ビッシング」と呼ばれます。"],
+
+      // ==================== ② セキュリティ管理 (sg-021 〜 sg-040) ====================
+      ["sg-021", "セキュリティ管理", "リスクマネジメント（JIS Q 31000 / ISMS）におけるリスク対応の4つの選択肢のうち、保険への加入や外部専門業者への業務委託によって他者とリスクを分担する対応はどれか。", ["リスク低減", "リスク回避", "リスク移転（共有）", "リスク保有"], 2, "サイバー保険への加入や外部委託先との契約によるリスク分担は「リスク移転（リスク共有）」に分類されます。"],
+      ["sg-022", "セキュリティ管理", "組織の「情報セキュリティポリシ」を基本方針・対策基準・実施手順の3階層で構成する場合、「対策基準」に記述すべき内容として最も適切なものはどれか。", ["経営陣による情報セキュリティへの取り組み宣言", "基本方針を実現するために守るべき具体的な規定・ルール（What）", "特定のファイアウォール製品の具体的な設定コマンド手順（How）", "過去1年間に発生したインシデントの統計レポート"], 1, "基本方針（Why：経営陣の宣言）→ 対策基準（What：何を守るか・規定）→ 実施手順（How：具体的な操作手順・マニュアル）の3層構造が標準です。"],
+      ["sg-023", "セキュリティ管理", "社内のPCがマルウェアに感染した疑いがある場合の初動対応として、証拠保全（デジタルフォレンジックス）および被害拡大防止の観点から最も適切な行動はどれか。", ["直ちにPCの電源ケーブルを引き抜いて強制終了する", "LANケーブルを抜く（またはWi-Fiを切断する）などネットワークから隔離し、管理者に報告する", "ウイルス対策ソフトをアンインストールして再インストールする", "感染原因を調べるために怪しい添付ファイルを再度開いて挙動を確認する"], 1, "まずネットワークから遮断して感染拡大やC&C通信を封じ込めます。電源を即座に落とすと揮発性メモリ（RAM）上の重要な証拠が消滅するため注意が必要です。"],
+      ["sg-024", "セキュリティ管理", "リスクアセスメントの3つのプロセスを、実施する順序どおりに並べたものはどれか。", ["リスク特定 → リスク分析 → リスク評価", "リスク分析 → リスク特定 → リスク評価", "リスク評価 → リスク特定 → リスク分析", "リスク特定 → リスク評価 → リスク分析"], 0, "リスクアセスメントは、①リスク特定（どんなリスクがあるか洗い出す）→ ②リスク分析（発生確率と影響度からリスクレベルを算出）→ ③リスク評価（受容基準と比較して対応優先順位を決める）の順で行います。"],
+      ["sg-025", "セキュリティ管理", "セキュリティ対策を講じた後にも依然として残存するリスク（残留リスク）について、そのレベルが組織の受容基準以下であることを確認し、追加対策を行わず現状のまま受け入れる対応を何というか。", ["リスク保有（リスク受容）", "リスク回避", "リスク低減", "リスク移転"], 0, "対策後の残留リスクが許容範囲内である場合に、これ以上のコストをかけずリスクをそのまま受け入れる判断を「リスク保有（受容）」と呼びます。"],
+      ["sg-026", "セキュリティ管理", "赤字続きで情報漏えいリスクも極めて高い新規Webサービス事業について、経営判断により事業そのものから撤退し、リスクの発生源を完全に断つ対応はどれか。", ["リスク回避", "リスク低減", "リスク共有", "リスク保有"], 0, "リスクを伴う活動や業務自体を中止・撤退することで、リスクが生じる可能性をゼロにする対応は「リスク回避」です。"],
+      ["sg-027", "セキュリティ管理", "ISMS（JIS Q 27001）において、組織が採用するリスク対応策（管理策）と、規格の附属書Aに記載された管理策とを比較し、採否およびその理由を文書化したものを何というか。", ["適用宣言書（SoA）", "情報セキュリティ基本方針", "サービスレベル合意書（SLA）", "事業継続計画（BCP）"], 0, "適用宣言書（Statement of Applicability: SoA）は、ISMSにおいてどの管理策を選択し、なぜ除外したのかを明記する必須文書です。"],
+      ["sg-028", "セキュリティ管理", "組織内でセキュリティインシデントが発生した際、報告の受付、影響範囲の調査、対応の調整、外部機関との連携などを専門的に行う組織内チームを何と呼ぶか。", ["CSIRT（シーサート）", "SOC（ソック）", "SIEM（シーム）", "PMO（ピーエムオー）"], 0, "CSIRT（Computer Security Incident Response Team）は、インシデント発生時の対応・調整・再発防止を担う組織です。SOCは主に24時間365日のログ・通信監視を担う組織です。"],
+      ["sg-029", "セキュリティ管理", "ファイアウォールやサーバなどの機器を24時間365日体制で監視し、ログや通信パケットの分析によってサイバー攻撃の兆候を検知・通知する専門組織はどれか。", ["SOC（Security Operation Center）", "CSIRT", "JPCERT/CC", "NISC"], 0, "SOCはネットワークやデバイスの監視・ログ分析を専門に行い、インシデントを検知した際にCSIRTへエスカレーションします。"],
+      ["sg-030", "セキュリティ管理", "不正アクセスや情報漏えいが発生した際、法的証拠や原因究明のためにハードディスクやメモリ、通信ログなどの電磁的記録を保全・調査・解析する技術や手順を何というか。", ["デジタルフォレンジックス", "ペネトレーションテスト", "ファジング", "リスクアセスメント"], 0, "デジタルフォレンジックスは、インシデントの証拠保全や原因究明のためにデジタルデータを法的に有効な形で収集・解析する手法です。"],
+      ["sg-031", "セキュリティ管理", "デジタルフォレンジックスにおいて、証拠データの収集時に「最も優先して最初に取得すべきデータ（揮発性が高い順）」として適切な順序はどれか。", ["CPUキャッシュ・レジスタやメモリ（RAM） → ハードディスク → バックアップテープ", "バックアップテープ → ハードディスク → メモリ（RAM）", "ハードディスク → メモリ（RAM） → ルータのルーティングテーブル", "プリンタの印刷履歴 → ハードディスク → メモリ（RAM）"], 0, "Order of Volatility（揮発性の順序）の原則に従い、電源を切ると消えてしまう揮発性の高いデータ（CPUレジスタ、RAM、ネットワーク接続状態など）から最優先で保全します。"],
+      ["sg-032", "セキュリティ管理", "大地震や大規模サイバー攻撃などの緊急事態が発生した際、中核となる重要業務を中断させない、あるいは中断しても目標時間内に復旧させるための計画を何というか。", ["BCP（事業継続計画）", "SLA（サービスレベル合意書）", "NDA（秘密保持契約）", "RFP（提案依頼書）"], 0, "BCP（Business Continuity Plan）は、災害やシステム障害発生時に重要業務を継続・早期復旧するための計画です。"],
+      ["sg-033", "セキュリティ管理", "BCP（事業継続計画）やバックアップ設計において、「被災時にいつの時点のデータまで遡って復旧させるか（許容できるデータ消失期間）」を表す指標はどれか。", ["RPO（目標復旧時点）", "RTO（目標復旧時間）", "RLO（目標復旧レベル）", "MTBF（平均故障間隔）"], 0, "RPO（Recovery Point Objective：目標復旧時点）は「いつのデータまで戻すか（例：前日24時時点）」、RTO（Recovery Time Objective：目標復旧時間）は「何時間以内に業務を再開するか」を表します。"],
+      ["sg-034", "セキュリティ管理", "業務の外部委託（アウトソーシング）におけるセキュリティ管理として、最も適切なものはどれか。", ["委託先がプライバシーマークやISMS認証を取得していれば、契約書にセキュリティ条項を盛り込む必要はない", "委託元は委託先に対してセキュリティ対策状況を定期的に監査・確認し、再委託には事前の書面承認を義務付ける", "委託先で情報漏えいが発生した場合、法的な管理責任はすべて委託先のみが負い、委託元は一切責任を問われない", "委託業務終了後も、将来の再契約に備えて委託先に個人データを保管させ続ける"], 1, "個人情報保護法等でも委託元の監督責任が定められており、セキュリティ条項の締結、再委託の事前承認制、定期的な監査、契約終了時のデータ確実消去・返却が必要です。"],
+      ["sg-035", "セキュリティ管理", "不正行為やミスを防止するためのアクセス管理の原則のうち、「業務遂行に必要最小限のアクセス権限のみを利用者に付与する」原則を何というか。", ["最小権限の原則（Need to Knowの原則）", "職務分掌の原則", "フェイルセーフの原則", "フールプルーフの原則"], 0, "知る必要のない情報にはアクセスさせない「Need to Know（最小権限の原則）」は、内部不正やマルウェア感染時の被害範囲を最小化する基本原則です。"],
+      ["sg-036", "セキュリティ管理", "内部不正を防止するため、「システムの開発担当者に本番環境の運用権限を与えない」「発注担当者と検収・支払担当者を別にする」といった管理手法を何というか。", ["職務分掌（職務の分離）", "シングルサインオン", "ジョブローテーション", "クリアデスク"], 0, "1人の担当者に権限が集中すると不正の隠蔽が可能になるため、複数の役割に分けて相互牽制を働かせる「職務分掌（Segregation of Duties）」が重要です。"],
+      ["sg-037", "セキュリティ管理", "離席時や退社時に、机の上に重要書類や記憶媒体を放置しないこと、およびPCの画面をロックして覗き見を防ぐ対策の組み合わせを何というか。", ["クリアデスク・クリアスクリーン", "クリーンルーム・クリーンブート", "ブラインドタッチ・ショルダーハック対策", "物理的隔離・論理的隔離"], 0, "書類等を机上に放置しない「クリアデスク」と、離席時に画面ロックを行う「クリアスクリーン」は、オフィス内の情報漏えいを防ぐ重要な物理・人的対策です。"],
+      ["sg-038", "セキュリティ管理", "従業員が個人で所有するスマートフォンやPCを業務に利用する形態を「BYOD」と呼ぶが、会社が支給・管理する端末を一定の管理下で私的利用も認める形態を何というか。", ["COPE（Corporate Owned, Personally Enabled）", "CYOD（Choose Your Own Device）", "VDI（Virtual Desktop Infrastructure）", "MDM（Mobile Device Management）"], 0, "BYODは私物端末の業務利用、CYODは会社が用意した選択肢から選ぶ方式、COPEは会社支給端末の個人利用許可方式です。"],
+      ["sg-039", "セキュリティ管理", "業務で正式に許可されていないクラウドストレージやチャットツール、生成AIサービスなどを、従業員がIT部門に無断で業務利用してしまう問題を何と呼ぶか。", ["シャドーIT", "ソーシャルエンジニアリング", "ゼロトラスト", "デジタルディバイド"], 0, "組織が把握・管理していないIT機器やクラウドサービスを無断利用する「シャドーIT」は、機密情報の漏えいやアカウント乗っ取りの大きな温床となります。"],
+      ["sg-040", "セキュリティ管理", "従業員に対する「標的型攻撃メール訓練」を実施する際の留意点として、最も適切なものはどれか。", ["訓練メールを開封してしまった従業員には懲戒処分を科して恐怖心を与える", "不審なメールを受信した際に、開封せず迅速にCSIRTや所定窓口へ報告できたかを重要な評価指標とする", "事前通告を一切せず、実在の取引先の名前やロゴを無断使用して業務を混乱させる", "訓練は新入社員のみを対象とし、管理職や役員は対象外とする"], 1, "訓練の目的は「引っかからないこと」だけでなく、「万一開封した、または不審メールに気づいた際に迅速に報告できる体制・文化を作ること（報告率の向上）」にあります。役員を含む全社員が対象です。"],
+
+      // ==================== ③ セキュリティ対策 (sg-041 〜 sg-060) ====================
+      ["sg-041", "セキュリティ対策", "公開鍵暗号方式を用いて、送信者Aが受信者Bに対して「第三者に盗聴されないように暗号化したメッセージ」を送信する場合、暗号化に使用する鍵はどれか。", ["送信者Aの公開鍵", "送信者Aの秘密鍵", "受信者Bの公開鍵", "受信者Bの秘密鍵"], 2, "暗号通信では「受信者Bの公開鍵」で暗号化し、受信者B自身の「秘密鍵」で復号します。一方、ディジタル署名では「送信者Aの秘密鍵」で署名を生成します。"],
+      ["sg-042", "セキュリティ対策", "多要素認証（MFA）として認められる組み合わせはどれか。", ["ログインパスワード と 秘密の質問（母親の旧姓）", "社員証ICカード と ワンタイムパスワード生成トークン", "指紋認証 と 静脈認証", "利用者ID・パスワード と スマートフォンに届くSMS認証コード"], 3, "知識情報（パスワード）、所持情報（SMSが届くスマホ）、生体情報（指紋など）の3要素のうち、異なる2つ以上を組み合わせる必要があります。アは知識×知識、イは所持×所持、ウは生体×生体で単一要素の二段階認証です。"],
+      ["sg-043", "セキュリティ対策", "ネットワークセキュリティ対策のうち、Webアプリケーションの前面に配置し、HTTP/HTTPS通信のペイロード（中身）を解析してSQLインジェクションやXSSなどの攻撃を検知・遮断する仕組みはどれか。", ["WAF（Web Application Firewall）", "パケットフィルタリング型ファイアウォール", "ステートフルインスペクション", "DMZ（非武装地帯）"], 0, "WAFはアプリケーション層（L7）の通信内容を検査し、Webアプリ固有の脆弱性を突く攻撃（SQLiやXSS）を防御します。"],
+      ["sg-044", "セキュリティ対策", "共通鍵暗号方式と公開鍵暗号方式を組み合わせ、共通鍵を相手の公開鍵で暗号化して安全に共有し、実際のデータ通信は高速な共通鍵暗号で行う方式を何というか。", ["ハイブリッド暗号方式", "ブロック暗号方式", "ストリーム暗号方式", "ハッシュ連鎖方式"], 0, "SSL/TLSやS/MIMEなどで採用されている方式で、公開鍵暗号の「鍵配送の安全性」と共通鍵暗号の「処理の高速性」の両方のメリットを活かしたハイブリッド暗号方式です。"],
+      ["sg-045", "セキュリティ対策", "任意の長さのデータから固定長のビット列（メッセージダイジェスト）を生成する関数であり、元のデータを復元できない「一方向性」を持つものはどれか。", ["ハッシュ関数（SHA-256など）", "共通鍵暗号（AESなど）", "公開鍵暗号（RSAなど）", "楕円曲線暗号（ECC）"], 0, "SHA-256などの暗号学的ハッシュ関数は不可逆（一方向性）であり、パスワードの保存やディジタル署名における改ざん検知に利用されます。"],
+      ["sg-046", "セキュリティ対策", "公開鍵が確かにその所有者のものであることを第三者機関である認証局（CA）が証明する仕組み（PKI）において、Webサーバの正当性を証明するためにブラウザへ提示されるものはどれか。", ["サーバ証明書（ディジタル証明書）", "CRL（証明書失効リスト）", "秘密鍵ファイル", "ルートゾーンファイル"], 0, "SSL/TLS通信では、認証局（CA）の秘密鍵で署名された「サーバ証明書（公開鍵を含む）」をブラウザが検証することで、接続先Webサーバの真正性を確認します。"],
+      ["sg-047", "セキュリティ対策", "有効期限内に秘密鍵の漏えいなどが発覚し、ディジタル証明書を失効させた際、証明書の有効性をリアルタイムに認証局へ問い合わせて確認するプロトコルはどれか。", ["OCSP（Online Certificate Status Protocol）", "SNMP", "LDAP", "NTP"], 0, "証明書の失効確認には、一覧ファイルをダウンロードするCRL（証明書失効リスト）方式と、リアルタイムに問い合わせるOCSP方式があります。"],
+      ["sg-048", "セキュリティ対策", "バイオメトリクス認証（生体認証）において、本人を誤って拒否してしまう確率を「FRR（本人拒否率）」、他人を誤って受け入れてしまう確率を「FAR（他人受入率）」と呼ぶ。装置の判定基準を厳しく設定した場合の挙動として正しいものはどれか。", ["FAR（他人受入率）は下がり、FRR（本人拒否率）は上がる", "FAR（他人受入率）は上がり、FRR（本人拒否率）は下がる", "FARとFRRの両方が下がる", "FARとFRRの両方が上がる"], 0, "トレードオフの関係にあり、セキュリティを重視して判定を厳しくすると、他人が突破する確率（FAR）は下がりますが、本人でも弾かれる確率（FRR）は上がります。"],
+      ["sg-049", "セキュリティ対策", "1回の利用者認証によって、複数の社内システムやクラウドサービスへ再ログインすることなくアクセスできるようにする仕組みはどれか。", ["シングルサインオン（SSO）", "フェデレーション", "多要素認証（MFA）", "キャプチャ（CAPTCHA）"], 0, "SSO（Single Sign-On）は利便性を高めパスワードの使い回しを減らす一方、1度突破されると全システムにアクセスされるため、多要素認証との併用が不可欠です。"],
+      ["sg-050", "セキュリティ対策", "XMLをベースとして、異なるドメイン（組織）間で認証情報や属性情報をやり取りし、クラウドサービス間のシングルサインオンを実現する標準規格はどれか。", ["SAML（Security Assertion Markup Language）", "IPsec", "WPA3", "IEEE 802.1X"], 0, "SAMLはIdP（認証プロバイダ）とSP（サービスプロバイダ）間でXML形式のアサーションを交換し、エンタープライズ向けSSOを実現する代表的な規格です。"],
+      ["sg-051", "セキュリティ対策", "外部のWebサービスに対して、利用者のIDやパスワードを直接渡すことなく、API経由でのアクセス権限の「認可（Authorization）」を安全に委譲するためのプロトコルはどれか。", ["OAuth 2.0", "Telnet", "FTP", "POP3"], 0, "OAuthは「認証」ではなく「認可（権限の委譲）」の仕組みです。これに認証機能を拡張したレイヤーが「OpenID Connect（OIDC）」です。"],
+      ["sg-052", "セキュリティ対策", "ネットワーク上の通信を監視し、不正アクセスの兆候を検知した際に管理者へ通知するシステムを「IDS」と呼ぶが、検知するだけでなくリアルタイムに通信を遮断・防御する機能を持つシステムはどれか。", ["IPS（Intrusion Prevention System：侵入防止システム）", "SIEM", "プロキシサーバ", "NAT"], 0, "IDS（Intrusion Detection System）は検知・通知のみを行いますが、IPSはインラインに配置されて不正通信の遮断（Prevention）まで行います。"],
+      ["sg-053", "セキュリティ対策", "社内ネットワーク（内）とインターネット（外）の中間に設けられ、公開用のWebサーバやメールサーバ、DNSサーバなどを配置して社内LANへの直接侵入を防ぐネットワーク領域を何というか。", ["DMZ（DeMilitarized Zone：非武装地帯）", "VLAN", "VPN", "イントラネット"], 0, "外部に公開するサーバをDMZに隔離配置することで、万一公開サーバが侵害されても社内内部ネットワークへの被害波及を防ぎます。"],
+      ["sg-054", "セキュリティ対策", "パソコンやサーバなどのエンドポイント端末にエージェントを導入し、不審なプロセスの挙動や操作ログを常時監視して、マルウェア感染後の迅速な検知・隔離・調査を支援する仕組みはどれか。", ["EDR（Endpoint Detection and Response）", "EPP（従来型アンチウイルス）", "UTM（統合脅威管理）", "DLP（データ損失防止）"], 0, "EPPが「入口での感染防止」を目的とするのに対し、EDRは「侵入・感染した後の素早い検知と封じ込め対応」を目的としています。"],
+      ["sg-055", "セキュリティ対策", "「社内ネットワークだから安全」という従来の境界型防御の前提を捨て、社内外を問わずすべてのアクセスに対して毎回厳格な認証・認可・端末の健全性検証を行うセキュリティモデルはどれか。", ["ゼロトラスト（Zero Trust）セキュリティ", "ペリメータ（境界型）モデル", "ハニーポットモデル", "エアギャップモデル"], 0, "テレワークやクラウド利用の普及に伴い、「何も信頼せず常に検証する（Never Trust, Always Verify）」というゼロトラストアーキテクチャが主流となっています。"],
+      ["sg-056", "セキュリティ対策", "複数のセキュリティ機能（ファイアウォール、VPN、IDS/IPS、アンチウイルス、Webフィルタリングなど）を1台のハードウェアアプライアンスに統合し、中小企業などでも導入・管理しやすくした製品はどれか。", ["UTM（Unified Threat Management：統合脅威管理）", "スイッチングハブ", "ロードバランサ", "リピータ"], 0, "UTMは複数のゲートウェイセキュリティ機能を1台に集約し、運用負荷とコストを抑えて多層防御を実現する装置です。"],
+      ["sg-057", "セキュリティ対策", "無線LAN（Wi-Fi）のセキュリティ規格のうち、脆弱性が指摘されているWEPやWPA2の後継として策定され、SAE（ドラゴンフライ鍵交換）によって辞書攻撃への耐性などを大幅に強化した最新規格はどれか。", ["WPA3", "WPA-TKIP", "SSIDステルス", "MACアドレスフィルタリング"], 0, "WPA3はKRACKs（鍵再インストール攻撃）やオフライン辞書攻撃に対する耐性を備えた現在の推奨無線LAN暗号化規格です。なお、SSID隠蔽やMACアドレス制限は暗号化ではないため不十分です。"],
+      ["sg-058", "セキュリティ対策", "送信元ドメイン認証技術のうち、メール送信元サーバのIPアドレスをあらかじめDNSのTXTレコードに公開しておき、受信側がそれと照合してなりすましを検知する技術はどれか。", ["SPF（Sender Policy Framework）", "DKIM（DomainKeys Identified Mail）", "S/MIME", "PGP"], 0, "SPFは「IPアドレス」による送信元認証、DKIMは「電子署名」による送信元認証、DMARCはSPFとDKIMの認証失敗時の扱い（隔離や拒否）を宣言・レポートする技術です。"],
+      ["sg-059", "セキュリティ対策", "電子メールのヘッダに送信元ドメインの秘密鍵で生成した電子署名を付与し、受信側がDNSから取得した公開鍵で検証することで、送信元のなりすましとメール本文の改ざんを検知する技術はどれか。", ["DKIM（DomainKeys Identified Mail）", "SPF", "POP before SMTP", "OP25B"], 0, "DKIMは電子署名を用いるため、メール転送時にも認証が維持されやすく、メッセージの改ざん検知も可能な送信ドメイン認証技術です。"],
+      ["sg-060", "セキュリティ対策", "オフィスやデータセンターの入退室管理において、認証を済ませた人のすぐ後ろについて、認証を行わずに一緒に入り込んでしまう不正侵入の手口を何というか。", ["共連れ（ピギーバッキング / テイルゲーティング）", "ショルダーハッキング", "トラッシング", "スキャベンジング"], 0, "共連れ対策には、1人ずつしか通過できないサークルゲート（回転扉）やインターロックゲート（二重扉）、警備員の配置、入退室両方のカードタッチ義務化が有効です。"],
+
+      // ==================== ④ 法規・ガイドライン (sg-061 〜 sg-080) ====================
+      ["sg-061", "法規・ガイドライン", "不正競争防止法において、企業のノウハウや顧客名簿などが「営業秘密」として法的に保護されるための3要件の組み合わせとして正しいものはどれか。", ["機密性・完全性・可用性", "秘密管理性・有用性・非公知性", "新規性・進歩性・産業上の利用可能性", "真正性・信頼性・責任追跡性"], 1, "営業秘密の3要件は「秘密管理性（アクセス制限やマル秘表示）」「有用性（事業活動に役立つ）」「非公知性（一般に知られていない）」です。すべて満たす必要があります。"],
+      ["sg-062", "法規・ガイドライン", "個人情報保護法において、本人の人種、信条、社会的身分、病歴、犯罪の経歴など、不当な差別や偏見が生じないように特に慎重な取扱いが求められ、原則としてあらかじめ本人の同意を得なければ取得してはならない情報はどれか。", ["匿名加工情報", "仮名加工情報", "要配慮個人情報", "個人関連情報"], 2, "病歴や犯罪歴などは「要配慮個人情報」と定義され、取得時の本人同意が必須であり、オプトアウトによる第三者提供も一切禁止されています。"],
+      ["sg-063", "法規・ガイドライン", "不正アクセス禁止法において処罰の対象となる行為はどれか。", ["社内のアクセス権限を持つ正規の従業員が、業務目的外で顧客データベースを閲覧した", "他人のIDとパスワードを無断で入力し、アクセス制御機能を持つサーバにログインした", "自身のPCでマルウェアのソースコードを解析目的で閲覧した", "ロックのかかっていない他人のスマートフォンを画面から覗き見た"], 1, "不正アクセス禁止法は「電気通信回線（ネットワーク）を通じて」「アクセス制御機能を突破して」他人の識別符号を無断入力する行為や、他人のID/PWを無断で第三者に提供する行為（助長行為）などを処罰します。"],
+      ["sg-064", "法規・ガイドライン", "個人情報保護法において、特定の個人を識別できないように個人情報を加工し、かつその個人情報を「復元できないようにしたもの」であって、一定のルールのもと本人同意なしで第三者提供が可能な情報はどれか。", ["匿名加工情報", "仮名加工情報", "要配慮個人情報", "保有個人データ"], 0, "匿名加工情報は、特定の個人を識別できず復元も不可能な状態に加工したデータです。一方、「仮名加工情報」は他の情報と照合しない限り個人を識別できないようにしたもので、社内での統計分析等に限定され原則第三者提供はできません。"],
+      ["sg-065", "法規・ガイドライン", "個人情報取扱事業者が保有する個人データについて、不正アクセス（ランサムウェア等を含む）による漏えい、またはそのおそれが生じた場合、個人の権利利益を害するおそれが大きいときに報告が義務付けられている機関はどこか。", ["個人情報保護委員会", "公正取引委員会", "消費者庁", "日本ネットワークインフォメーションセンター（JPNIC）"], 0, "要配慮個人情報の漏えい、不正アクセスによる漏えい、財産的被害のおそれがある漏えい、または1,000人を超える漏えい等が発生した場合、個人情報保護委員会への報告（速報・確報）および本人への通知が法的義務となっています。"],
+      ["sg-066", "法規・ガイドライン", "個人情報保護法において、原則として本人の同意がなくても個人データを第三者に提供できるケース（例外事由）に該当しないものはどれか。", ["法令に基づく場合（警察からの捜査関係事項照会など）", "人の生命、身体又は財産の保護のために必要がある場合であって、本人の同意を得ることが困難であるとき", "利用目的の達成に必要な範囲内において、個人データの取扱いの全部又は一部を外部業者に委託する場合", "自社の親会社やグループ会社に対して、特に告知や手続きを行わずに顧客リストを共有する場合"], 3, "業務委託・事業承継・共同利用は「第三者提供」にあたらないと整理されますが、グループ会社間での「共同利用」には、あらかじめ共同利用する旨や項目・管理責任者等を本人に通知または公表しておく必要があります。無断共有は違法です。"],
+      ["sg-067", "法規・ガイドライン", "刑法の「不正指令電磁的記録に関する罪（いわゆるコンピュータ・ウイルスに関する罪）」において、正当な理由がないのに処罰の対象となる行為として規定されているものはどれか。", ["ウイルスの作成・提供・供用・取得・保管", "ウイルスに感染したPCの廃棄", "ウイルス対策ソフトの定義ファイル更新忘れ", "標的型攻撃メールを誤って開封してしまう行為"], 0, "刑法第168条の2および3により、正当な理由なくコンピュータ・ウイルスを作成・提供・供用（実行）する行為だけでなく、実行目的での「取得」や「保管」も処罰対象となります。"],
+      ["sg-068", "法規・ガイドライン", "著作権法において、コンピュータプログラムの著作物に関する保護対象として正しいものはどれか。", ["プログラムのソースコードおよびオブジェクトコードは保護されるが、プログラム言語・規約（プロトコル）・解法（アルゴリズム）は保護されない", "プログラム言語やアルゴリズムそのものも著作権法で独占的に保護される", "オープンソースソフトウェア（OSS）には著作権が存在しない", "業務上、従業員が職務として作成したプログラムの著作者は常に従業員個人となる"], 0, "著作権法は「表現」を保護するため、ソースコード等は保護されますが、プログラム言語・規約（インターフェース）・解法（アルゴリズム）は保護対象外です。また職務著作は原則として法人（会社）が著作者となります。"],
+      ["sg-069", "法規・ガイドライン", "電子署名及び認証業務に関する法律（電子署名法）において、手書きの署名や押印と同等の法的効力（真正な成立の推定）が認められる電子署名の要件として正しいものはどれか。", ["本人だけが行うことができること（固有性）と、改ざんが行われていないか確認できること", "共通鍵暗号方式のみを使用していること", "社内のシステム管理者が発行した自己署名証明書（オレオレ証明書）を使用していること", "パスワードを平文でメール本文に記載していること"], 0, "電子署名法では、①本人だけが行うことができること、②署名後に改ざんがないか確認できること、の2要件を満たす電子署名が付与された電磁的記録は、真正に成立したものと推定されます。"],
+      ["sg-070", "法規・ガイドライン", "特定電子メールの送信の適正化等に関する法律（特定電子メール法）において、広告・宣伝メールを送信する際に原則として採用されている規制方式はどれか。", ["オプトイン方式（あらかじめ受信に同意した者に対してのみ送信を認める方式）", "オプトアウト方式（受信拒否の通知があるまでは誰にでも無制限に送信できる方式）", "ホワイトリスト検閲方式", "エスクロー方式"], 0, "特定電子メール法では、あらかじめ同意を得た相手にのみ広告宣伝メールを送れる「オプトイン方式」が原則であり、送信者氏名や受信拒否連絡先の表示義務も課されています。"],
+      ["sg-071", "法規・ガイドライン", "経済産業省とIPAが策定した「サイバーセキュリティ経営ガイドライン」において、経営者が認識し、CISO等の担当幹部に指示すべき事項としてまとめられている「3原則」と「重要項目」の数はいくつか。", ["3原則 と 10項目", "5原則 と 20項目", "7原則 と 7項目", "10原則 と 100項目"], 0, "サイバーセキュリティ経営ガイドラインは、「経営者が認識すべき3原則（リーダーシップ、サプライチェーン配慮、関係者とのコミュニケーション）」と「担当幹部に指示すべき重要10項目」で構成されています。"],
+      ["sg-072", "法規・ガイドライン", "システム開発や運用の業務委託契約における「請負契約」と「準委任契約」および「労働者派遣契約」の違いについて、適切な記述はどれか。", ["請負契約や準委任契約では、発注者（委託元）が受託者の作業員に対して直接の指揮命令を行うことはできず、直接指揮命令を行うと「偽装請負」となる", "請負契約では、発注者が受託者のエンジニアに直接残業命令や作業手順の指示を出せる", "労働者派遣契約では、派遣先企業は派遣労働者に業務の指揮命令を行うことが禁止されている", "準委任契約は成果物の完成に対してのみ報酬が支払われる契約である"], 0, "派遣契約では派遣先に指揮命令権がありますが、請負・準委任（業務委託）では指揮命令権は受託者側にあります。発注者が直接作業員に指示を出すと労働者派遣法違反（偽装請負）となります。"],
+      ["sg-073", "法規・ガイドライン", "IPAが実施している制度で、中小企業が自ら情報セキュリティ対策に取り組むことを自己宣言し、段階に応じて「一つ星」や「二つ星」のロゴマークを使用できる制度はどれか。", ["SECURITY ACTION（セキュリティアクション）", "プライバシーマーク制度", "ISMS適合性評価制度", "グッドデザイン賞"], 0, "SECURITY ACTIONは、中小企業が情報セキュリティ5か条や基本方針の策定を自己宣言するIPAの普及促進制度です。"],
+      ["sg-074", "法規・ガイドライン", "一般財団法人日本情報経済社会推進協会（JIPDEC）が運営し、日本産業規格「JIS Q 15001（個人情報保護マネジメントシステム）」に適合して個人情報を適切に取り扱っている事業者を認定する制度はどれか。", ["プライバシーマーク（Pマーク）制度", "ISMSクラウドセキュリティ認証", "CSIRT認定制度", "ITパスポート制度"], 0, "プライバシーマーク制度はJIS Q 15001に基づき、個人情報保護体制が整っている事業者を認定する制度です（有効期間2年）。"],
+      ["sg-075", "法規・ガイドライン", "クラウドサービス固有のセキュリティ管理策を定めた国際規格であり、ISMS（ISO/IEC 27001）のアドオン認証として利用される規格はどれか。", ["ISO/IEC 27017（JIS Q 27017）", "ISO 9001", "ISO 14001", "IEEE 802.11"], 0, "ISO/IEC 27017はクラウドサービスの提供者および利用者の双方に対する情報セキュリティ管理策のガイドライン規格です。"],
+      ["sg-076", "法規・ガイドライン", "クレジットカード会員データを安全に取り扱うことを目的として、国際カードブランド5社が共同で策定した情報セキュリティ基準はどれか。", ["PCI DSS", "HIPAA", "GDPR", "SOX法"], 0, "PCI DSS（Payment Card Industry Data Security Standard）は、カード情報を取り扱う加盟店や決済代行事業者に求められる国際セキュリティ基準です。"],
+      ["sg-077", "法規・ガイドライン", "欧州連合（EU）および欧州経済領域（EEA）域内の個人のデータ保護とプライバシーに関して定められ、域外への個人データ移転や巨額の制裁金などを規定している法令はどれか。", ["GDPR（一般データ保護規則）", "CCPA", "DMCA", "NIST SP800-53"], 0, "GDPR（General Data Protection Regulation）はEUの一般データ保護規則であり、EU域内に拠点がなくてもEU居住者にサービスを提供する日本企業にも適用される場合があります。"],
+      ["sg-078", "法規・ガイドライン", "米国国立標準技術研究所（NIST）が策定した「サイバーセキュリティフレームワーク（CSF 2.0）」において、統治（Govern）を中心として定義されている6つのコア機能に含まれる組み合わせはどれか。", ["特定（Identify）・防御（Protect）・検知（Detect）・対応（Respond）・復旧（Recover）", "計画（Plan）・実行（Do）・評価（Check）・改善（Act）・廃棄（Dispose）", "機密性・完全性・可用性・真正性・責任追跡性", "予防・発見・矯正・移転・保有"], 0, "NIST CSFは、従来の「特定・防御・検知・対応・復旧」の5機能に、CSF 2.0で「統治（Govern）」を加えた6つの機能でサイバーセキュリティ対策を体系化しています。"],
+      ["sg-079", "法規・ガイドライン", "ソフトウェア製品やシステムの脆弱性について、その深刻度を「基本評価基準」「現状評価基準」「環境評価基準」の3つの基準から0.0〜10.0の数値で定量的に評価する国際的な共通指標はどれか。", ["CVSS（共通脆弱性評価システム）", "CVE（共通脆弱性識別子）", "CWE（共通脆弱性タイプ一覧）", "CPE（共通プラットフォーム一覧）"], 0, "CVSS（Common Vulnerability Scoring System）は脆弱性の深刻度を最大10.0のスコアで算出する手法です。なお、個別の脆弱性に振るIDはCVE、脆弱性の種類分類はCWEです。"],
+      ["sg-080", "法規・ガイドライン", "日本の「サイバーセキュリティ基本法」に基づき、内閣に設置されているサイバーセキュリティ戦略本部の事務局機能を担う組織（旧NISCおよび後継の国家サイバー統括組織）の役割として適切なものはどれか。", ["政府機関や重要インフラのサイバーセキュリティ政策の立案・推進および総合調整", "民間企業の社内LANの配線工事の請負", "市販のウイルス対策ソフトの開発・販売", "個人のスマートフォンの修理業務"], 0, "サイバーセキュリティ基本法に基づき、国のサイバーセキュリティ戦略の立案や政府機関・重要インフラの横断的な保護・調整を担います。"],
+
+      // ==================== ⑤ 関連分野(IT・経営) (sg-081 〜 sg-100) ====================
+      ["sg-081", "関連分野(IT・経営)", "クラウドサービス（IaaS, PaaS, SaaS）におけるセキュリティの「責任共有モデル」に関する記述として、最も適切なものはどれか。", ["SaaSを利用する場合、利用者のアカウント管理やパスワード設定の責任もすべてクラウド事業者が負う", "IaaSを利用する場合、物理データセンターの入退室管理は利用者が責任を負う", "IaaS・PaaS・SaaSのいずれであっても、格納するデータ自体の管理やアカウント権限設定の責任は利用者側にある", "クラウドに移行すれば、すべてのセキュリティ責任をクラウド事業者に完全移転できる"], 2, "どのクラウドモデル（SaaS含む）であっても、登録するデータの内容や利用者ID・アクセス権限の管理責任は常に利用者（ユーザー企業）側に残ります。"],
+      ["sg-082", "関連分野(IT・経営)", "ITIL（ITサービスマネジメント）における「インシデント管理」と「問題管理」の違いに関する記述のうち、適切なものはどれか。", ["インシデント管理は通常のサービス運営を可能な限り迅速に復旧させることを目的とし、問題管理はインシデントの根本原因を特定・解決して再発を防ぐことを目的とする", "インシデント管理はハードウェア障害のみを扱い、問題管理はソフトウェア障害のみを扱う", "問題管理はヘルプデスクの一次対応窓口であり、インシデント管理はシステム監査部門が行う", "両者は同じプロセスであり、呼称が異なるだけである"], 0, "インシデント管理は「暫定対処（ワークアラウンド）による迅速なサービス復旧」、問題管理は「根本原因の究明と恒久対策による再発防止」が目的です。"],
+      ["sg-083", "関連分野(IT・経営)", "システム監査における「監査人の独立性」を担保するための措置として、最も適切なものはどれか。", ["情報システム部門の開発リーダーが、自身が開発したシステムの監査人を兼任する", "監査対象部門から独立した内部監査部門の担当者や外部の専門家が監査を実施する", "監査計画は監査対象部門の承認を得なければ作成できないようにする", "監査結果はシステム部門内だけで秘密裏に処理し、経営陣には報告しない"], 1, "システム監査人は、監査対象となる業務や部門から独立した客観的な立場である必要があり、監査結果は経営陣へ直接報告されます。"],
+      ["sg-084", "関連分野(IT・経営)", "TCP/IPネットワークにおいて、代表的なプロトコルと標準的なウェルノウンポート番号の組み合わせとして正しいものはどれか。", ["HTTPS : 443 / SSH : 22 / DNS : 53", "HTTPS : 80 / SSH : 23 / DNS : 25", "HTTP : 443 / Telnet : 22 / SMTP : 110", "FTP : 80 / POP3 : 25 / IMAP : 53"], 0, "HTTPは80、HTTPSは443、SSHは22、Telnetは23、SMTPは25（または587）、DNSは53、POP3は110（POP3Sは995）です。ファイアウォール設定問題で頻出です。"],
+      ["sg-085", "関連分野(IT・経営)", "プライベートIPアドレスを使用する社内LANからインターネットへアクセスする際、1つのグローバルIPアドレスを複数の端末で共有するために、IPアドレスとポート番号を相互変換する技術はどれか。", ["NAPT（IPマスカレード）", "DHCP", "ARP", "VLAN"], 0, "NATはIPアドレスを1対1で変換しますが、NAPT（Network Address Port Translation）はポート番号も合わせて変換することで、1つのグローバルIPで複数端末の同時通信を可能にします。"],
+      ["sg-086", "関連分野(IT・経営)", "ドメイン名とIPアドレスを対応付けるDNSにおいて、メールの配送先サーバ（メールエクスチェンジャ）を指定するためのリソースレコードはどれか。", ["MXレコード", "Aレコード", "CNAMEレコード", "PTRレコード"], 0, "AレコードはIPv4アドレス、AAAAはIPv6アドレス、CNAMEは別名、NSはネームサーバ、MXはメールサーバ、TXTはSPFやDKIM等のテキスト情報を定義します。"],
+      ["sg-087", "関連分野(IT・経営)", "関係データベース（RDB）において、利用者に対してテーブル全体ではなく特定の行や列だけを参照させたい場合や、権限を取り消したい場合に用いるSQL文の組み合わせとして適切なものはどれか。", ["VIEW（ビュー）を定義し、GRANT文で権限を付与、REVOKE文で権限を取り消す", "INDEXを作成し、COMMIT文で権限を付与、ROLLBACK文で取り消す", "TRIGGERを作成し、SELECT文で権限を付与、DELETE文で取り消す", "DROP文で権限を付与、ALTER文で取り消す"], 0, "SQLのDCL（データ制御言語）では、GRANT文でアクセス権限を付与し、REVOKE文で権限を剥奪します。またVIEW（仮想表）を使うことで特定カラムのみを開示するアクセス制御が可能です。"],
+      ["sg-088", "関連分野(IT・経営)", "データのバックアップ方式のうち、「最後にフルバックアップを取得した時点以降に変更・追加されたすべてのデータ」を毎回バックアップする方式を何というか。", ["差分バックアップ", "増分バックアップ", "ミラーリング", "ストライピング"], 0, "「差分バックアップ」は初回フルバックアップからの変更分すべてを保存します（復旧時はフル＋最新差分の2つで済む）。「増分バックアップ」は前回のバックアップからの変更分のみを保存します。"],
+      ["sg-089", "関連分野(IT・経営)", "複数のハードディスクを組み合わせて信頼性や性能を高めるRAID技術のうち、パリティ（誤り訂正符号）を各ディスクに分散して記録し、1台のディスクが故障してもデータを復旧できる（最低3台構成の）方式はどれか。", ["RAID 5", "RAID 0（ストライピング）", "RAID 1（ミラーリング）", "JBOD"], 0, "RAID 0は高速化のみで冗長性なし、RAID 1は同じデータを2台に書き込むミラーリング、RAID 5はパリティを分散記録して容量効率と耐障害性を両立する方式（2台同時故障にはRAID 6で対応）です。"],
+      ["sg-090", "関連分野(IT・経営)", "テレワーク対策などで導入される「VDI（仮想デスクトップ基盤）」のセキュリティ上の特徴として、最も適切なものはどれか。", ["OSやアプリケーション、業務データをすべてサーバ側（データセンター等）で実行・保管し、手元の端末には画面情報のみを転送するため、端末紛失時のデータ漏えいリスクを低減できる", "手元のPCのハードディスクにすべての顧客データを同期してオフライン作業させる方式である", "ネットワークが切断されても無制限にクラウド上の仮想マシンを操作できる", "マルウェアには絶対に感染しなくなるため、ウイルス対策やパッチ適用が不要になる"], 0, "VDI（Virtual Desktop Infrastructure）は手元のクライアント端末にデータを残さず画面転送のみで業務を行うため、端末の盗難・紛失による情報漏えい対策に極めて有効です。"],
+      ["sg-091", "関連分野(IT・経営)", "システムの信頼性を表す指標である「稼働率」を求める計算式として、正しいものはどれか。（MTBF：平均故障間隔、MTTR：平均修理時間）", ["MTBF ÷ (MTBF + MTTR)", "MTTR ÷ (MTBF + MTTR)", "(MTBF - MTTR) ÷ MTBF", "MTBF × MTTR"], 0, "稼働率 ＝ 稼働している時間（MTBF） ÷ 総時間（MTBF＋MTTR）で算出されます。稼働率を高めるには、MTBF（故障までの時間）を長くし、MTTR（復旧時間）を短くします。"],
+      ["sg-092", "関連分野(IT・経営)", "稼働率がそれぞれ 0.9 のサーバ2台を「並列」に接続し、どちらか1台でも稼働していればシステム全体としてサービスを継続できる冗長構成にした場合、システム全体の稼働率はいくらか。", ["0.99", "0.81", "0.90", "0.95"], 0, "並列システムの稼働率は「1 － (両方同時に故障する確率)」で求めます。1 － (1 - 0.9) × (1 - 0.9) ＝ 1 － 0.01 ＝ 0.99 となります。（直列の場合は 0.9 × 0.9 ＝ 0.81 です）"],
+      ["sg-093", "関連分野(IT・経営)", "複数のシステムや機器の時刻がずれていると、インシデント発生時のログ突合（フォレンジックス調査）が困難になる。ネットワーク経由で各機器の時刻を正確に同期させるためのプロトコルはどれか。", ["NTP（Network Time Protocol）", "SNMP", "ICMP", "DHCP"], 0, "ログの証拠能力と時系列分析を担保するため、すべてのサーバやネットワーク機器はNTPサーバと時刻同期しておくことが必須です。"],
+      ["sg-094", "関連分野(IT・経営)", "ファイアウォール、サーバ、EDR、認証基盤など、組織内の多様な機器から出力される膨大なログを一元的に収集・相関分析し、サイバー攻撃や内部不正をリアルタイムに検知する仕組みはどれか。", ["SIEM（Security Information and Event Management）", "WAF", "UPS", "CDN"], 0, "SIEMは複数の機器のログを集約して「相関分析」を行うことで、単体のログでは気づけない高度な攻撃や異常行動を検知する仕組みです。"],
+      ["sg-095", "関連分野(IT・経営)", "ITサービス提供者と顧客の間で、サービスの品質目標（稼働率、応答時間、障害時の復旧目標時間など）と責任範囲を明文化して合意した文書を何というか。", ["SLA（Service Level Agreement：サービスレベル合意書）", "NDA（秘密保持契約）", "RFP（提案依頼書）", "WBS（作業分解構成図）"], 0, "SLAは提供するITサービスの品質水準を定量的に合意する文書です。これに基づいて継続的に品質を監視・改善する活動をSLM（サービスレベル管理）と呼びます。"],
+      ["sg-096", "関連分野(IT・経営)", "プロジェクトマネジメントにおいて、プロジェクトで実施すべき作業を細分化し、階層構造で洗い出して整理した図表を何というか。", ["WBS（Work Breakdown Structure）", "ガントチャート", "アローダイアグラム（PERT図）", "パレート図"], 0, "WBSはプロジェクトの作業を漏れなく階層的に分解した構成図であり、スケジュール作成やコスト見積り、担当者割当ての基礎となります。"],
+      ["sg-097", "関連分野(IT・経営)", "金融商品取引法（J-SOX）などにおける「内部統制」のフレームワーク（COSOモデル）で定義されている、内部統制の4つの目的として正しい組み合わせはどれか。", ["業務の有効性と効率性、財務報告の信頼性、事業活動に関わる法令等の遵守、資産の保全", "機密性、完全性、可用性、真正性", "計画、実行、評価、改善", "リスク特定、リスク分析、リスク評価、リスク対応"], 0, "日本の内部統制基準では、①業務の有効性・効率性、②財務報告の信頼性、③法令遵守（コンプライアンス）、④資産の保全の4つの目的と、6つの基本的要素（統制環境、リスクの評価と対応、統制活動、情報と伝達、モニタリング、ITへの対応）が定義されています。"],
+      ["sg-098", "関連分野(IT・経営)", "システム監査において、監査人が監査意見を形成するために収集する「監査証拠」に関する記述として、最も適切なものはどれか。", ["被監査部門の担当者からの口頭での説明よりも、システムが出力したアクセスログや客観的な記録文書のほうが証拠能力（信頼性）は高い", "監査証拠は1種類だけ入手すれば十分であり、裏付け調査を行う必要はない", "被監査部門が作成した自己点検表のみを根拠として監査報告書を作成する", "監査人が推測した事項も確定的な監査証拠として扱う"], 0, "監査証拠は十分かつ適切なものを収集する必要があり、口頭説明（ヒアリング）よりも、システムログや第三者作成文書、実地確認（ウォークスルー）など客観性の高い証拠を重視します。"],
+      ["sg-099", "関連分野(IT・経営)", "システムや設備に故障・異常が発生した際、常に「安全側」に動作するように設計する考え方（例：踏切の遮断機が停電時に自動で降りる、ファイアウォール障害時に通信を遮断する）を何というか。", ["フェイルセーフ（Fail Safe）", "フェイルソフト（Fail Soft）", "フールプルーフ（Fool Proof）", "フォールトトレランス（Fault Tolerance）"], 0, "障害時に安全側に制御する設計が「フェイルセーフ」、機能を縮退させてでも稼働を続けるのが「フェイルソフト」、利用者が誤操作できないようにする設計が「フールプルーフ」です。"],
+      ["sg-100", "関連分野(IT・経営)", "経済産業省が策定した「システム管理基準」および「システム監査基準」の位置付けとして、最も適切なものはどれか。", ["組織が情報システム戦略の立案から企画・開発・運用・保守、およびその監査を適切に行うための実践規範（ガイドライン）であり、法的拘束力はないが事実上の標準として活用される", "違反した企業に刑事罰や罰金を科すための法律である", "特定のハードウェアメーカーの製品仕様書である", "個人向けのスマートフォン操作マニュアルである"], 0, "システム管理基準とシステム監査基準は、企業や組織がITガバナンス・情報セキュリティ管理・システム監査を実施する際の判断基準（ベストプラクティス）として広く用いられています。"]
+    ];
+
+    const INITIAL_QUESTIONS = RAW_SEED_QUESTIONS.map(([id, category, question, options, correct, explanation]) => ({
+      id,
+      category,
+      question,
+      options,
+      correct,
+      explanation,
+      flagged: false,
+      correctCount: 0,
+      wrongCount: 0
+    }));
+
+    const CATEGORIES = [
+      "セキュリティ全般",
+      "セキュリティ管理",
+      "セキュリティ対策",
+      "法規・ガイドライン",
+      "関連分野(IT・経営)"
+    ];
+
+    /**************************************************************
+     * 3. IndexedDB データベース管理 (リロード時永続化 & 既存データ保護)
+     **************************************************************/
+    const DB_NAME = "SG_Study_App_DB";
+    const DB_VERSION = 1;
+    const STORE_QUESTIONS = "questions";
+    let dbInstance = null;
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        if (dbInstance) return resolve(dbInstance);
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(STORE_QUESTIONS)) {
+            db.createObjectStore(STORE_QUESTIONS, { keyPath: "id" });
+          }
+        };
+
+        request.onsuccess = (event) => {
+          dbInstance = event.target.result;
+          resolve(dbInstance);
+        };
+
+        request.onerror = (event) => {
+          const msg = "データベース接続エラー: " + (event.target.error?.message || "不明なエラー");
+          alert(msg);
+          reject(new Error(msg));
+        };
+      });
+    }
+
+    async function getAllQuestionsFromDB() {
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_QUESTIONS, "readonly");
+          const store = tx.objectStore(STORE_QUESTIONS);
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => {
+            alert("データ取得に失敗しました: " + req.error?.message);
+            reject(req.error);
+          };
+        });
+      } catch (err) {
+        alert("データ読み込みエラー: " + err.message);
+        return [];
+      }
+    }
+
+    async function putQuestionToDB(questionObj) {
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_QUESTIONS, "readwrite");
+          const store = tx.objectStore(STORE_QUESTIONS);
+          const req = store.put(questionObj);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => {
+            alert("データの保存に失敗しました: " + req.error?.message);
+            reject(req.error);
+          };
+        });
+      } catch (err) {
+        alert("保存エラー: " + err.message);
+      }
+    }
+
+    async function deleteQuestionFromDB(id) {
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_QUESTIONS, "readwrite");
+          const store = tx.objectStore(STORE_QUESTIONS);
+          const req = store.delete(id);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => {
+            alert("削除に失敗しました: " + req.error?.message);
+            reject(req.error);
+          };
+        });
+      } catch (err) {
+        alert("削除通信エラー: " + err.message);
+      }
+    }
+
+    /**************************************************************
+     * 4. アプリケーション状態管理
+     **************************************************************/
+    let allQuestions = [];
+    let radarChartInstance = null;
+
+    // 演習セッション用ステート
+    let quizSession = {
+      mode: 'cbt',         // 'cbt' | 'instant' | 'weak' | 'category'
+      questions: [],       // 出題対象配列
+      currentIndex: 0,
+      userAnswers: {},     // { questionId: selectedOptionIndex }
+      timerSeconds: 0,
+      timerInterval: null
+    };
+
+    // 初期化処理
+    window.addEventListener("DOMContentLoaded", async () => {
+      lucide.createIcons();
+      await initializeAppData();
+      setupKeyboardShortcuts();
+      renderHomeDashboard();
+    });
+
+    async function initializeAppData() {
+      let stored = await getAllQuestionsFromDB();
+      const existingIds = new Set(stored.map(q => q.id));
+
+      // 既存の学習履歴やカスタム問題は一切消去せず、未登録のプリセット問題のみ差分追加する
+      let addedCount = 0;
+      for (const q of INITIAL_QUESTIONS) {
+        if (!existingIds.has(q.id)) {
+          await putQuestionToDB(q);
+          addedCount++;
+        }
+      }
+      if (addedCount > 0) {
+        stored = await getAllQuestionsFromDB();
+      }
+      // ID順で安定ソート
+      allQuestions = stored.sort((a, b) => a.id.localeCompare(b.id));
+    }
+
+    /**************************************************************
+     * 5. ホーム画面＆レーダーチャート描画
+     **************************************************************/
+    function renderHomeDashboard() {
+      let totalAns = 0;
+      let totalCor = 0;
+      let weakCount = 0;
+
+      const catStats = {};
+      CATEGORIES.forEach(c => catStats[c] = { answered: 0, correct: 0, count: 0 });
+
+      allQuestions.forEach(q => {
+        const ans = (q.correctCount || 0) + (q.wrongCount || 0);
+        totalAns += ans;
+        totalCor += (q.correctCount || 0);
+        if (q.flagged || (q.wrongCount || 0) > 0) {
+          weakCount++;
+        }
+        if (catStats[q.category]) {
+          catStats[q.category].count++;
+          catStats[q.category].answered += ans;
+          catStats[q.category].correct += (q.correctCount || 0);
+        }
+      });
+
+      const accuracy = totalAns > 0 ? Math.round((totalCor / totalAns) * 100) : 0;
+
+      document.getElementById("stat-total-answered").innerHTML = `${totalAns}<span class="text-xs font-normal ml-0.5">回</span>`;
+      document.getElementById("stat-accuracy").innerHTML = `${accuracy}<span class="text-xs font-normal ml-0.5">%</span>`;
+      document.getElementById("stat-weak-count").innerHTML = `${weakCount}<span class="text-xs font-normal ml-0.5">問</span>`;
+
+      const badge = document.getElementById("stat-badge");
+      if (totalAns === 0) {
+        badge.textContent = "未計測";
+        badge.className = "text-xs font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600";
+      } else if (accuracy >= 60) {
+        badge.textContent = "合格圏内 (60%以上)";
+        badge.className = "text-xs font-bold px-2.5 py-0.5 rounded-full bg-ios-green/15 text-ios-green";
+      } else {
+        badge.textContent = `あと ${60 - accuracy}% で合格圏`;
+        badge.className = "text-xs font-bold px-2.5 py-0.5 rounded-full bg-ios-orange/15 text-ios-orange";
+      }
+
+      // 分野別ボタンの生成
+      const catContainer = document.getElementById("category-buttons");
+      catContainer.innerHTML = "";
+      CATEGORIES.forEach(cat => {
+        const st = catStats[cat];
+        const rate = st.answered > 0 ? Math.round((st.correct / st.answered) * 100) : 0;
+        const btn = document.createElement("button");
+        btn.onclick = () => startQuiz('category', cat);
+        btn.className = "tap-target w-full bg-ios-bg hover:bg-gray-200/70 rounded-xl px-3.5 py-2.5 flex items-center justify-between transition active:scale-[0.99]";
+        btn.innerHTML = `
+          <div class="flex items-center space-x-2.5">
+            <span class="w-2 h-2 rounded-full ${rate >= 60 ? 'bg-ios-green' : 'bg-ios-blue'}"></span>
+            <span class="text-xs font-bold text-gray-800">${cat}</span>
+            <span class="text-[11px] text-ios-gray">(${st.count}問)</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-extrabold ${rate >= 60 ? 'text-ios-green' : 'text-ios-blue'}">${rate}%</span>
+            <i data-lucide="chevron-right" class="w-4 h-4 text-ios-gray"></i>
+          </div>
+        `;
+        catContainer.appendChild(btn);
+      });
+
+      // Chart.js レーダーチャート描画
+      const ctx = document.getElementById("radarChart").getContext("2d");
+      const rates = CATEGORIES.map(c => {
+        const s = catStats[c];
+        return s.answered > 0 ? Math.round((s.correct / s.answered) * 100) : 0;
+      });
+
+      if (radarChartInstance) {
+        radarChartInstance.destroy();
+      }
+      radarChartInstance = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: CATEGORIES,
+          datasets: [{
+            label: '正答率 (%)',
+            data: rates,
+            backgroundColor: 'rgba(0, 122, 255, 0.18)',
+            borderColor: '#007AFF',
+            pointBackgroundColor: '#007AFF',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 0,
+              max: 100,
+              ticks: { stepSize: 20, display: false },
+              pointLabels: {
+                font: { size: 11, weight: 'bold' },
+                color: '#3A3A3C'
+              }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      lucide.createIcons();
+    }
+
+    /**************************************************************
+     * 6. 演習・CBTモード制御
+     **************************************************************/
+    function startQuiz(mode, categoryFilter = null) {
+      let targetPool = [...allQuestions];
+
+      if (mode === 'weak') {
+        targetPool = allQuestions.filter(q => q.flagged || (q.wrongCount || 0) > 0);
+        if (targetPool.length === 0) {
+          alert("現在、誤答または「後で見直す」フラグが付いた問題はありません。通常演習を開始します。");
+          targetPool = [...allQuestions];
+        }
+      } else if (mode === 'category' && categoryFilter) {
+        targetPool = allQuestions.filter(q => q.category === categoryFilter);
+      }
+
+      if (targetPool.length === 0) {
+        alert("出題できる問題がありません。問題管理から追加してください。");
+        return;
+      }
+
+      // シャッフル
+      let shuffled = targetPool.sort(() => Math.random() - 0.5);
+
+      // 本番CBT模試モードの場合は実際の科目A試験と同じ48問をランダム抽出
+      if (mode === 'cbt' && shuffled.length > 48) {
+        shuffled = shuffled.slice(0, 48);
+      }
+
+      quizSession = {
+        mode: mode,
+        questions: shuffled,
+        currentIndex: 0,
+        userAnswers: {},
+        timerSeconds: shuffled.length * 90, // 1問あたり90秒目安のカウントダウン
+        timerInterval: null
+      };
+
+      // 画面切り替え
+      showView('view-quiz');
+      document.getElementById('cbt-header-info').classList.remove('hidden');
+      updateTabHighlight('tab-quiz');
+
+      startTimer();
+      renderCurrentQuestion();
+    }
+
+    function startTimer() {
+      if (quizSession.timerInterval) clearInterval(quizSession.timerInterval);
+      updateTimerUI();
+      quizSession.timerInterval = setInterval(() => {
+        if (quizSession.timerSeconds > 0) {
+          quizSession.timerSeconds--;
+          updateTimerUI();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (quizSession.timerInterval) {
+        clearInterval(quizSession.timerInterval);
+        quizSession.timerInterval = null;
+      }
+    }
+
+    function updateTimerUI() {
+      const m = String(Math.floor(quizSession.timerSeconds / 60)).padStart(2, '0');
+      const s = String(quizSession.timerSeconds % 60).padStart(2, '0');
+      document.getElementById('timer-display').textContent = `${m}:${s}`;
+    }
+
+    function renderCurrentQuestion() {
+      const q = quizSession.questions[quizSession.currentIndex];
+      const total = quizSession.questions.length;
+      const idx = quizSession.currentIndex;
+
+      document.getElementById("quiz-q-num").textContent = `問 ${idx + 1} / ${total}`;
+      document.getElementById("quiz-category-badge").textContent = q.category;
+      document.getElementById("quiz-question-text").textContent = q.question;
+
+      // フラグボタン状態更新
+      const flagBtn = document.getElementById("btn-flag");
+      if (q.flagged) {
+        flagBtn.className = "tap-target px-3 py-1.5 rounded-xl bg-ios-orange text-white text-xs font-bold flex items-center space-x-1.5 transition";
+      } else {
+        flagBtn.className = "tap-target px-3 py-1.5 rounded-xl border border-ios-border bg-white text-gray-600 text-xs font-bold flex items-center space-x-1.5 transition";
+      }
+
+      // 選択肢（ア・イ・ウ・エ）描画
+      const labels = ["ア", "イ", "ウ", "エ"];
+      const optContainer = document.getElementById("quiz-options");
+      optContainer.innerHTML = "";
+
+      const selectedAns = quizSession.userAnswers[q.id];
+      const isInstantAnswered = (quizSession.mode === 'instant' || quizSession.mode === 'weak' || quizSession.mode === 'category') && selectedAns !== undefined;
+
+      q.options.forEach((optText, i) => {
+        const btn = document.createElement("button");
+        btn.onclick = () => selectOption(i);
+
+        let styleClass = "bg-ios-bg border-transparent text-gray-900 hover:bg-gray-200/60";
+        let badgeClass = "bg-white text-gray-700 border border-ios-border";
+
+        if (isInstantAnswered) {
+          if (i === q.correct) {
+            styleClass = "bg-ios-green/15 border-ios-green text-gray-900";
+            badgeClass = "bg-ios-green text-white";
+          } else if (i === selectedAns && i !== q.correct) {
+            styleClass = "bg-ios-red/15 border-ios-red text-gray-900";
+            badgeClass = "bg-ios-red text-white";
+          }
+        } else if (selectedAns === i) {
+          styleClass = "bg-ios-blue/10 border-ios-blue text-ios-blue";
+          badgeClass = "bg-ios-blue text-white";
+        }
+
+        btn.className = `tap-target w-full rounded-xl p-3.5 border-2 text-left flex items-start space-x-3 transition active:scale-[0.99] ${styleClass}`;
+        btn.innerHTML = `
+          <span class="w-7 h-7 rounded-lg font-extrabold text-xs flex items-center justify-center shrink-0 mt-0.5 ${badgeClass}">${labels[i]}</span>
+          <span class="text-sm font-medium leading-snug flex-1">${optText}</span>
+        `;
+        optContainer.appendChild(btn);
+      });
+
+      // 一問一答・弱点・分野別モード時の即時解説表示
+      const expBox = document.getElementById("instant-explanation");
+      if (isInstantAnswered) {
+        expBox.classList.remove("hidden");
+        const isCorrect = selectedAns === q.correct;
+        const banner = document.getElementById("instant-result-banner");
+        banner.className = `flex items-center space-x-2 font-extrabold text-sm ${isCorrect ? 'text-ios-green' : 'text-ios-red'}`;
+        banner.innerHTML = isCorrect
+          ? `<i data-lucide="check-circle" class="w-5 h-5"></i><span>正解！（正解：${labels[q.correct]}）</span>`
+          : `<i data-lucide="x-circle" class="w-5 h-5"></i><span>不正解（正解：${labels[q.correct]}）</span>`;
+        document.getElementById("instant-exp-text").textContent = q.explanation;
+      } else {
+        expBox.classList.add("hidden");
+      }
+
+      // 前へ・次へ・終了ボタン制御
+      document.getElementById("btn-prev").disabled = (idx === 0);
+      document.getElementById("btn-prev").classList.toggle("opacity-40", idx === 0);
+
+      const isLast = (idx === total - 1);
+      document.getElementById("btn-next").classList.toggle("hidden", isLast);
+      document.getElementById("btn-finish").classList.toggle("hidden", !isLast);
+
+      lucide.createIcons();
+    }
+
+    async function selectOption(optIndex) {
+      const q = quizSession.questions[quizSession.currentIndex];
+      quizSession.userAnswers[q.id] = optIndex;
+      renderCurrentQuestion();
+    }
+
+    async function toggleCurrentFlag() {
+      const q = quizSession.questions[quizSession.currentIndex];
+      q.flagged = !q.flagged;
+      await putQuestionToDB(q);
+      renderCurrentQuestion();
+    }
+
+    function navigateQuestion(delta) {
+      const nextIdx = quizSession.currentIndex + delta;
+      if (nextIdx >= 0 && nextIdx < quizSession.questions.length) {
+        quizSession.currentIndex = nextIdx;
+        renderCurrentQuestion();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    // CBT問題一覧パレット表示
+    function openQuestionPalette() {
+      const grid = document.getElementById("palette-grid");
+      grid.innerHTML = "";
+      quizSession.questions.forEach((q, idx) => {
+        const answered = quizSession.userAnswers[q.id] !== undefined;
+        const btn = document.createElement("button");
+        btn.onclick = () => {
+          quizSession.currentIndex = idx;
+          closeModal('modal-palette');
+          renderCurrentQuestion();
+        };
+        let cls = answered ? "bg-ios-blue text-white" : "bg-gray-100 text-gray-700";
+        if (q.flagged) cls += " ring-2 ring-ios-orange";
+        btn.className = `tap-target rounded-xl font-bold text-xs py-2.5 flex flex-col items-center justify-center ${cls}`;
+        btn.innerHTML = `<span>問${idx + 1}</span>`;
+        grid.appendChild(btn);
+      });
+      document.getElementById("modal-palette").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    // 採点＆結果画面表示
+    async function finishQuiz() {
+      stopTimer();
+      document.getElementById('cbt-header-info').classList.add('hidden');
+
+      let correctCount = 0;
+      const total = quizSession.questions.length;
+      const labels = ["ア", "イ", "ウ", "エ"];
+
+      const reviewList = document.getElementById("result-review-list");
+      reviewList.innerHTML = "";
+
+      for (let i = 0; i < total; i++) {
+        const q = quizSession.questions[i];
+        const userAns = quizSession.userAnswers[q.id];
+        const isCorrect = (userAns === q.correct);
+
+        if (isCorrect) {
+          correctCount++;
+          q.correctCount = (q.correctCount || 0) + 1;
+        } else {
+          q.wrongCount = (q.wrongCount || 0) + 1;
+        }
+        await putQuestionToDB(q);
+
+        // レビューカード作成
+        const card = document.createElement("div");
+        card.className = "bg-ios-card rounded-2xl p-4 shadow-sm border border-ios-border/60 space-y-2";
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold px-2 py-0.5 rounded-md ${isCorrect ? 'bg-ios-green/15 text-ios-green' : 'bg-ios-red/15 text-ios-red'}">
+              問${i + 1}：${isCorrect ? '正解' : '不正解'}
+            </span>
+            <span class="text-[11px] text-ios-gray font-semibold">${q.category}</span>
+          </div>
+          <p class="text-sm font-bold text-gray-900">${q.question}</p>
+          <div class="text-xs space-y-1 pt-1">
+            <div class="text-gray-600">あなたの解答: <span class="font-bold">${userAns !== undefined ? labels[userAns] + ' (' + q.options[userAns] + ')' : '未解答'}</span></div>
+            <div class="text-ios-blue font-bold">正解: ${labels[q.correct]} (${q.options[q.correct]})</div>
+          </div>
+          <div class="text-xs text-gray-700 bg-ios-bg p-3 rounded-xl leading-relaxed">${q.explanation}</div>
+        `;
+        reviewList.appendChild(card);
+      }
+
+      const rate = Math.round((correctCount / total) * 100);
+      const passBadge = document.getElementById("result-pass-badge");
+      if (rate >= 60) {
+        passBadge.textContent = "合格基準クリア！ (60%以上)";
+        passBadge.className = "inline-block px-4 py-1 rounded-full text-xs font-extrabold bg-ios-green/15 text-ios-green";
+      } else {
+        passBadge.textContent = "もう少し！ (合格基準 60%)";
+        passBadge.className = "inline-block px-4 py-1 rounded-full text-xs font-extrabold bg-ios-red/15 text-ios-red";
+      }
+      document.getElementById("result-score-text").textContent = `${correctCount} / ${total} (${rate}%)`;
+
+      allQuestions = (await getAllQuestionsFromDB()).sort((a, b) => a.id.localeCompare(b.id));
+      showView('view-result');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /**************************************************************
+     * 7. 問題バンク管理 (CRUD: Create / Read / Update / Delete)
+     **************************************************************/
+    function renderManageList() {
+      const filterCat = document.getElementById("manage-filter-cat").value;
+      const listEl = document.getElementById("manage-question-list");
+      listEl.innerHTML = "";
+
+      const filtered = filterCat === "ALL"
+        ? allQuestions
+        : allQuestions.filter(q => q.category === filterCat);
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-8 text-xs text-ios-gray">該当する問題がありません</div>`;
+        return;
+      }
+
+      const labels = ["ア", "イ", "ウ", "エ"];
+      filtered.forEach(q => {
+        const item = document.createElement("div");
+        item.className = "bg-ios-card rounded-2xl p-4 shadow-sm border border-ios-border/60 space-y-2";
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-[10px] font-mono text-ios-gray">${q.id}</span>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-ios-blue/10 text-ios-blue">${q.category}</span>
+            </div>
+            <div class="flex items-center space-x-1">
+              <button onclick="openQuestionModal('${q.id}')" class="tap-target p-2 text-ios-blue hover:bg-blue-50 rounded-lg transition" title="編集">
+                <i data-lucide="pencil" class="w-4 h-4"></i>
+              </button>
+              <button onclick="handleDeleteQuestion('${q.id}')" class="tap-target p-2 text-ios-red hover:bg-red-50 rounded-lg transition" title="削除">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+          <p class="text-sm font-bold text-gray-900 leading-snug">${q.question}</p>
+          <div class="text-xs text-ios-gray">正解: <span class="font-bold text-gray-800">${labels[q.correct]} (${q.options[q.correct]})</span></div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      lucide.createIcons();
+    }
+
+    function openQuestionModal(editId = null) {
+      const modal = document.getElementById("modal-crud");
+      const titleEl = document.getElementById("crud-modal-title");
+
+      if (editId) {
+        const q = allQuestions.find(item => item.id === editId);
+        if (!q) return;
+        titleEl.textContent = "問題の編集";
+        document.getElementById("crud-id").value = q.id;
+        document.getElementById("crud-category").value = q.category;
+        document.getElementById("crud-question").value = q.question;
+        q.options.forEach((opt, idx) => {
+          document.getElementById(`crud-opt-${idx}`).value = opt;
+        });
+        const radios = document.getElementsByName("crud-correct");
+        radios[q.correct].checked = true;
+        document.getElementById("crud-explanation").value = q.explanation;
+      } else {
+        titleEl.textContent = "新規問題の追加";
+        document.getElementById("crud-id").value = "";
+        document.getElementById("crud-question").value = "";
+        [0, 1, 2, 3].forEach(idx => document.getElementById(`crud-opt-${idx}`).value = "");
+        document.getElementsByName("crud-correct")[0].checked = true;
+        document.getElementById("crud-explanation").value = "";
+      }
+
+      modal.classList.remove("hidden");
+    }
+
+    async function saveQuestionFromModal() {
+      const idVal = document.getElementById("crud-id").value;
+      const category = document.getElementById("crud-category").value;
+      const question = document.getElementById("crud-question").value.trim();
+      const options = [
+        document.getElementById("crud-opt-0").value.trim(),
+        document.getElementById("crud-opt-1").value.trim(),
+        document.getElementById("crud-opt-2").value.trim(),
+        document.getElementById("crud-opt-3").value.trim()
+      ];
+      const explanation = document.getElementById("crud-explanation").value.trim();
+
+      let correct = 0;
+      document.getElementsByName("crud-correct").forEach((r, idx) => {
+        if (r.checked) correct = idx;
+      });
+
+      // 入力バリデーション
+      if (!question || options.some(o => !o) || !explanation) {
+        alert("入力エラー: 問題文、4つの選択肢、および解説をすべて入力してください。");
+        return;
+      }
+
+      let targetObj;
+      if (idVal) {
+        const existing = allQuestions.find(q => q.id === idVal);
+        targetObj = {
+          ...existing,
+          category,
+          question,
+          options,
+          correct,
+          explanation
+        };
+      } else {
+        targetObj = {
+          id: "sg-custom-" + Date.now(),
+          category,
+          question,
+          options,
+          correct,
+          explanation,
+          flagged: false,
+          correctCount: 0,
+          wrongCount: 0
+        };
+      }
+
+      await putQuestionToDB(targetObj);
+      allQuestions = (await getAllQuestionsFromDB()).sort((a, b) => a.id.localeCompare(b.id));
+      closeModal("modal-crud");
+      renderManageList();
+      renderHomeDashboard();
+    }
+
+    async function handleDeleteQuestion(id) {
+      if (!confirm("この問題を削除してもよろしいですか？")) return;
+      await deleteQuestionFromDB(id);
+      allQuestions = (await getAllQuestionsFromDB()).sort((a, b) => a.id.localeCompare(b.id));
+      renderManageList();
+      renderHomeDashboard();
+    }
+
+    // 問題データは保持したまま、解答履歴カウントのみをリセットする機能
+    async function resetStudyHistory() {
+      if (!confirm("登録されている問題は残したまま、これまでの正答率・学習履歴のみをリセットしますか？")) return;
+      for (const q of allQuestions) {
+        q.correctCount = 0;
+        q.wrongCount = 0;
+        q.flagged = false;
+        await putQuestionToDB(q);
+      }
+      allQuestions = (await getAllQuestionsFromDB()).sort((a, b) => a.id.localeCompare(b.id));
+      renderHomeDashboard();
+      alert("学習履歴をリセットしました。");
+    }
+
+    /**************************************************************
+     * 8. 共通UI制御・モーダル外タップ・Shift+Enterショートカット
+     **************************************************************/
+    function switchTab(tabName) {
+      stopTimer();
+      document.getElementById('cbt-header-info').classList.add('hidden');
+
+      if (tabName === 'home') {
+        showView('view-home');
+        updateTabHighlight('tab-home');
+        renderHomeDashboard();
+      } else if (tabName === 'manage') {
+        showView('view-manage');
+        updateTabHighlight('tab-manage');
+        renderManageList();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showView(viewId) {
+      ['view-home', 'view-quiz', 'view-result', 'view-manage'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== viewId);
+      });
+    }
+
+    function updateTabHighlight(activeTabId) {
+      ['tab-home', 'tab-quiz', 'tab-manage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (id === activeTabId) {
+          el.classList.remove('text-ios-gray');
+          el.classList.add('text-ios-blue');
+        } else {
+          el.classList.remove('text-ios-blue');
+          el.classList.add('text-ios-gray');
+        }
+      });
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add("hidden");
+    }
+
+    // モーダル外側タップで閉じる処理
+    function handleBackdropClick(event, modalId) {
+      if (event.target.id === modalId) {
+        closeModal(modalId);
+      }
+    }
+
+    // テキストフォームの誤送信防止（Shift + Enter で保存、通常Enterは改行）
+    function setupKeyboardShortcuts() {
+      const form = document.getElementById("crud-form");
+      form.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.shiftKey) {
+          e.preventDefault();
+          saveQuestionFromModal();
+        } else if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+          e.preventDefault();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
